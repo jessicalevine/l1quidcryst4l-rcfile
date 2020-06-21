@@ -79,6 +79,7 @@ drop_filter += stabbing
 macros += M \{223} \{6}artefact\{32}||\{32}ego\{32}||\{32}whip\{32}||\{32}plate\{13}
 macros += M \{169} \{6}altar\{13}
 macros += M p ===autoexplorefight
+macros += M - ===print_nearby_killhole
 
 ### BORROWED ###
 
@@ -607,17 +608,23 @@ beogh_autopickup = you.god():find("Beogh")
   end
 
 
-  local ignore = true -- ignore cached paths
-
-  visible_tiles = {}
-  for x=-8,8 do
-    for y=-8,8 do
-      table.insert(visible_tiles, {x = x, y = y})
-    end
+  function node_compare(left, right)
+    dleft = distance (0, 0, left.x, left.y) 
+    dright = distance (0, 0, right.x, right.y)
+    return dleft < dright
   end
 
+  ordered_visible_tiles = {}
+  for x=-8,8 do
+    for y=-8,8 do
+      table.insert(ordered_visible_tiles, {x = x, y = y})
+    end
+  end
+  table.sort(ordered_visible_tiles, node_compare)
+
+  local ignore = false -- dont ignore cached paths
   function path_to_player(goal)
-    player_path = path ( {x=0,y=0}, goal, visible_tiles, ignore, valid_node_func )
+    player_path = path ( {x=0,y=0}, goal, ordered_visible_tiles, ignore, valid_node_func )
     if player_path then
       player_path [1] = nil
     end
@@ -709,7 +716,7 @@ beogh_autopickup = you.god():find("Beogh")
       record_acted()
     elseif too_many_monsters() and not in_kill_hole() then
       crawl.mpr("Too many monsters! Retreat to a killhole.")
-      print_nearby_killhole()
+      print_nearby_killhole(true)
     elseif items.fired_item() then
       -- Only if something is quivered
       hit_closest_nomove()
@@ -754,35 +761,25 @@ beogh_autopickup = you.god():find("Beogh")
     end
   end
 
-  function print_nearby_killhole()
+  function print_nearby_killhole(dont_print_message_if_not_found)
     nearby_killhole = find_nearby_killhole()
 
     if nearby_killhole then
       crawl.mpr("Killhole found: " .. nearby_killhole.x .. ", " .. nearby_killhole.y)
+    elseif not dont_print_message_if_not_found then
+      -- Double negative cuz keybinding calls with no arguments
+      crawl.mpr("No visible killhole found.")
     end
   end
 
   function find_nearby_killhole()
     killholes = {}
-    for x = -8,8 do
-      for y = -8,8 do
-        if in_kill_hole(x, y) then
-          table.insert(killholes, {x=x, y=y})
-        end
+    for _, tile in ipairs(ordered_visible_tiles) do
+      if in_kill_hole(tile.x, tile.y) then
+        return tile
       end
     end
 
-    shortest_path = nil
-    nearest_killhole = nil
-    for _, hole_loc in ipairs(killholes) do
-      player_path = path_to_player(hole_loc)
-      if player_path and (shortest_path == nil or #player_path < shortest_path) then
-        nearest_killhole = hole_loc
-        shortest_path = #player_path
-      end
-    end
-    
-    return nearest_killhole
   end
 
   -- makes sure we dont yell and wait every step through a killhole
