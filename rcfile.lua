@@ -74,13 +74,15 @@ drop_filter += wizardry, magical power, amnesia, brilliance
 drop_filter += stabbing
 : end
 
+force_more_message += MONSTERS ARE TOO THREATENING
 
 ### MACROS ###
 macros += M \{223} \{6}artefact\{32}||\{32}ego\{32}||\{32}whip\{32}||\{32}plate\{13}
 macros += M \{169} \{6}altar\{13}
 macros += M p ===autoexplorefight
 macros += M - ===print_nearby_killhole
-macros += M _ ===walk_one_step_to_killhole
+# macros += M _ ===walk_one_step_to_killhole
+# commenting until fixed infinite loop case
 
 ### BORROWED ###
 
@@ -668,14 +670,19 @@ beogh_autopickup = you.god():find("Beogh")
     local need_to_recover = should_rest(hp, mp, max_hp, max_mp)
 
     if you.feel_safe() then
-      crawl.mpr("I feel safe.")
+      if really_need_eat() and (hp > (max_hp * 0.6)) then
+        autoexplore()
+        record_acted()
+      end
+
       if need_to_recover then
         rest()
         crawl.mpr("Resting to recover.")
         return
       end
 
-      if turns_waited > 3 then
+      -- Greater turns for more safety, less for more speed
+      if turns_waited > 1 then
         take_appropriate_action()
         crawl.mpr("Done waiting for monsters. Taking action.")
         return
@@ -714,20 +721,16 @@ beogh_autopickup = you.god():find("Beogh")
 
   function take_appropriate_action()
     if you.feel_safe() then
-      crawl.mpr("Autoexploring.")
       autoexplore()
       record_acted()
-    elseif too_many_monsters() and not in_kill_hole() then
-      crawl.mpr("Too many monsters! Retreat to a killhole.")
+    elseif monsters_too_threatening() and not in_kill_hole() then
+      crawl.mpr("MONSTERS ARE TOO THREATENING! Retreat to a killhole.")
       print_nearby_killhole(true)
-    elseif items.fired_item() then
+    elseif items.fired_item() and not can_see_reach_or_threatening_ranged_monsters() then
       -- Only if something is quivered
       hit_closest_nomove()
       record_acted()
     else
-      -- not safe so wait for monster to approach killhole
-      -- polearms only handled by "took 0.2*max_hp damage" or the fact that autofight stops
-      -- at 60 TODO make better
       if not in_immediate_danger() and monster_will_enter_killhole() then
         wait()
         crawl.mpr("Waiting for monster approach.")
@@ -754,7 +757,6 @@ beogh_autopickup = you.god():find("Beogh")
 
   function monster_will_enter_killhole()
     ms = get_all_monsters()
-    crawl.mpr("ms length: " .. #ms)
     if ms then
       for _, m in ipairs(ms) do
         mpath = path_to_player({x=m:x_pos(), y=m:y_pos()})
@@ -825,7 +827,23 @@ beogh_autopickup = you.god():find("Beogh")
     local current_hp, max_hp = you.hp()
     local lost_big_chunk = (hp_lost() > (max_hp * 0.2))
     local hp_too_low = (current_hp < (max_hp * 0.8))
-    return monster_adjacent() or ((lost_big_chunk or hp_too_low) and not you.feel_safe)
+    local ranged = can_see_reach_or_threatening_ranged_monsters()
+    return monster_adjacent() or ((lost_big_chunk or hp_too_low) and not you.feel_safe) or ranged
+  end
+
+  -- TODO improve to check if reach is within 2 spaces
+  function can_see_reach_or_threatening_ranged_monsters()
+    local ranged_threat_count = 0
+    for _, m in ipairs(get_all_monsters()) do
+      if m:reach_range() > 1 then
+        return true
+      elseif m:name():find("priest") or m:name():find("wizard") then
+        ranged_threat_count = ranged_threat_count + m:threat()
+      end
+      -- TODO Solve attempt to call method 'has_ranged_attack' (a nil value)
+    end
+
+    return ranged_threat_count > 2
   end
 
   local surrounding_coords = {}
@@ -916,16 +934,31 @@ beogh_autopickup = you.god():find("Beogh")
     return first_monster == nil
   end
 
-  function too_many_monsters()
-    return sum_table(getMonsterList()) > 5
+  function monsters_too_threatening()
+    ms = get_all_monsters() 
+
+    total_threat = 0
+    for _, m in ipairs(ms) do
+      if m:threat() > 2 then
+        return true
+      end
+
+      total_threat = total_threat + m:threat()
+    end
+
+    return total_threat > 4
   end
 
-  function sum_table(matrix)
-    local sum = 0
-    for k,v in pairs(matrix) do
-      sum = sum + v
-    end
-    return sum
+  -- function sum_table(matrix)
+  --   local sum = 0
+  --   for k,v in pairs(matrix) do
+  --     sum = sum + v
+  --   end
+  --   return sum
+  -- end
+
+  function really_need_eat()
+    return you.hunger() < 2067
   end
 
   function should_rest(hp, mp, max_hp, max_mp)
