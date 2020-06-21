@@ -80,6 +80,7 @@ macros += M \{223} \{6}artefact\{32}||\{32}ego\{32}||\{32}whip\{32}||\{32}plate\
 macros += M \{169} \{6}altar\{13}
 macros += M p ===autoexplorefight
 macros += M - ===print_nearby_killhole
+macros += M _ ===walk_one_step_to_killhole
 
 ### BORROWED ###
 
@@ -600,8 +601,10 @@ beogh_autopickup = you.god():find("Beogh")
 
     local MAX_DIST = 1.5
 
+    local valid = not view.feature_at (neighbor.x, neighbor.y):find("wall") 
+
     -- helper function in the a-star module, returns distance between points
-    if distance ( node.x, node.y, neighbor.x, neighbor.y ) < MAX_DIST then
+    if valid and distance ( node.x, node.y, neighbor.x, neighbor.y ) < MAX_DIST then
       return true
     end
     return false
@@ -755,7 +758,6 @@ beogh_autopickup = you.god():find("Beogh")
     if ms then
       for _, m in ipairs(ms) do
         mpath = path_to_player({x=m:x_pos(), y=m:y_pos()})
-        crawl.mpr("mpath: " .. dump(mpath))
         return mpath and in_kill_hole(mpath[2].x, mpath[2].y)
       end
     end
@@ -772,6 +774,15 @@ beogh_autopickup = you.god():find("Beogh")
     end
   end
 
+  function path_to_nearby_killhole()
+    nearby_killhole = find_nearby_killhole()
+    if nearby_killhole then
+      return path_to_player(nearby_killhole)
+    else
+      return nil
+    end
+  end
+
   function find_nearby_killhole()
     killholes = {}
     for _, tile in ipairs(ordered_visible_tiles) do
@@ -779,7 +790,6 @@ beogh_autopickup = you.god():find("Beogh")
         return tile
       end
     end
-
   end
 
   -- makes sure we dont yell and wait every step through a killhole
@@ -819,14 +829,14 @@ beogh_autopickup = you.god():find("Beogh")
   end
 
   local surrounding_coords = {}
-  surrounding_coords.nw = {-1, -1}
-  surrounding_coords.n  = { 0, -1}
-  surrounding_coords.ne = { 1, -1}
-  surrounding_coords.w  = {-1,  0}
-  surrounding_coords.e  = { 1,  0}
-  surrounding_coords.sw = {-1,  1}
-  surrounding_coords.s  = { 0,  1}
-  surrounding_coords.se = { 1,  1}
+  surrounding_coords.y = {-1, -1}
+  surrounding_coords.k = { 0, -1}
+  surrounding_coords.u = { 1, -1}
+  surrounding_coords.h = {-1,  0}
+  surrounding_coords.l = { 1,  0}
+  surrounding_coords.b = {-1,  1}
+  surrounding_coords.j = { 0,  1}
+  surrounding_coords.n = { 1,  1}
 
   function monster_adjacent()
     for k,v in pairs(surrounding_coords) do
@@ -864,8 +874,32 @@ beogh_autopickup = you.god():find("Beogh")
     end
   end
 
-  function is_kill_hole()
-    -- TODO for finding kill holes
+  function walk_one_step_to_killhole()
+    if in_kill_hole() then
+      crawl.mpr("You're already in a killhole!")
+      return
+    end
+
+    nearby_killhole = find_nearby_killhole()
+    if nearby_killhole then
+      local path_to = path_to_nearby_killhole()
+      if path_to then
+        walk_one_step_to_tile(path_to[2])
+        return
+      end
+    end
+
+    crawl.mpr("No nearby killhole!")
+  end
+
+  function walk_one_step_to_tile(target_tile)
+    for direction_button, tile in pairs(surrounding_coords) do
+      -- crawl.mpr(tile.x .. target_tile.x .. tile.y .. target_tile.y)
+      if tile[1] == target_tile.x and tile[2] == target_tile.y then
+        crawl.mpr("Walking towards killhole.")
+        crawl.sendkeys(direction_button)
+      end
+    end
   end
 
   function rest()
