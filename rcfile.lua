@@ -1190,7 +1190,9 @@ ai += hat of spirit shield:Spirit
   function maybe_equip_early()
     if you.branch() == "D" and you.depth() < 5 and you.class() == "Fighter" then
       try_autoequip("W", "plate armour")
-      try_autoequip("w", "whip")
+      if best_weapon_skill() == "Maces & Flails" then
+        try_autoequip("w", "whip")
+      end
     end
   end
 
