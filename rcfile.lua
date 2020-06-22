@@ -686,7 +686,7 @@ ai += hat of spirit shield:Spirit
     crawl.setopt("use_animations = 0")
 
     did_exit_killhole()
-    if in_killhole() or get_monster_threat_level() < 2 then
+    if in_absolute_killhole() or get_monster_threat_level() < 2 then
       crawl.setopt("autofight_stop = 40")
     end
 
@@ -744,11 +744,11 @@ ai += hat of spirit shield:Spirit
   -- If false, caller should take actions
   function maybe_yell_in_killhole_or_wait()
     if you.feel_safe() then
-      if in_killhole() and not yelled_in_killhole then
+      if in_absolute_killhole() and not yelled_in_killhole then
         crawl.sendkeys('tt')
         yelled_in_killhole = true
         return true
-      elseif in_killhole() and yelled_in_killhole then
+      elseif in_absolute_killhole() and yelled_in_killhole then
 
         if turns_waited > 3 then
           crawl.mpr("Done waiting for monsters. Taking action.")
@@ -826,7 +826,7 @@ ai += hat of spirit shield:Spirit
     if ms then
       for _, m in ipairs(ms) do
         mpath = path_to_player({x=m:x_pos(), y=m:y_pos()})
-        return mpath and in_killhole(mpath[2].x, mpath[2].y)
+        return mpath and in_absolute_killhole(mpath[2].x, mpath[2].y)
       end
     end
   end
@@ -865,7 +865,7 @@ ai += hat of spirit shield:Spirit
     end
 
     for _, tile in ipairs(ordered_visible_tiles) do
-      if in_killhole(tile.x, tile.y) then
+      if in_absolute_killhole(tile.x, tile.y) then
         nearby_killhole_memoized = tile
         return tile
       end
@@ -883,12 +883,12 @@ ai += hat of spirit shield:Spirit
   -- makes sure we dont yell and wait every step through a killhole
   function did_exit_killhole()
     -- reset yelled_in_killhole
-    if was_in_killhole and not in_killhole then
+    if was_in_killhole and not in_absolute_killhole then
       yelled_in_killhole = false
       return true
     end
 
-    was_in_killhole = in_killhole
+    was_in_killhole = in_absolute_killhole
     return false
   end
 
@@ -998,8 +998,9 @@ ai += hat of spirit shield:Spirit
     return nil
   end
 
+  -- Player has max two open tiles around them (like a hallway)
   -- TODO Fix for out of view but remembered tiles (Crawl Lua doesn't expose?)
-  function in_killhole(tile_rel_to_player_x, tile_rel_to_player_y)
+  function in_absolute_killhole(tile_rel_to_player_x, tile_rel_to_player_y)
     -- Defaults to checking if player in killhole
     if tile_rel_to_player_x == nil then
       tile_rel_to_player_x = 0
@@ -1039,6 +1040,9 @@ ai += hat of spirit shield:Spirit
     return false
   end
 
+  -- Ensures all monsters will path to a tile in which there are no open tiles
+  -- both around it and around player, and therefore all visible monsters will
+  -- approach single file, even if player has open tiles behind them
   function in_relative_killhole()
     monsters = get_all_monsters()
     if not monsters or #monsters < 2 then
@@ -1089,7 +1093,7 @@ ai += hat of spirit shield:Spirit
   end
 
   function walk_one_step_to_killhole()
-    if in_killhole() then
+    if in_absolute_killhole() then
       crawl.mpr("You're already in a killhole!")
       return
     end
