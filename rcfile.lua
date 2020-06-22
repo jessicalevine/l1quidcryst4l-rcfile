@@ -1169,6 +1169,38 @@ ai += hat of spirit shield:Spirit
     end
   end
 
+  function try_autoequip(equip_letter, item_name)
+    if you.feel_safe() then
+      item = find_in_inventory(item_name)
+
+      if not item or item.equipped then
+        return
+      end
+
+      item_terse_name = item:name("plain", true)
+
+      crawl.mpr("Autoequipping " .. item_terse_name)
+      crawl.sendkeys(equip_letter .. items.index_to_letter(item.slot))
+      -- crawl.mpr("Tried to equip item you don't have: " .. item_terse_name)
+    else
+      -- crawl.mpr("Can't equip " .. item_terse_name .. "because it's not safe. Do it yourself")
+    end
+  end
+
+  function maybe_equip_early()
+    if you.branch() == "D" and you.depth() < 5 and you.class() == "Fighter" then
+      try_autoequip("W", "plate armour")
+      try_autoequip("w", "whip")
+    end
+  end
+
+  function ch_stop_running(kind)
+    -- Runs on autoexplore stop or item pickup
+    if kind == "explore_greedy" then
+      maybe_equip_early()
+    end
+  end
+
   function reset_memoized_variables()
     reset_memoized_monster_list()
   end
@@ -1186,7 +1218,7 @@ ai += hat of spirit shield:Spirit
   end
 
   -- == Opens skill menu == --
-  -- From HDA?
+  -- From HDA? and my mods
   local need_skills_opened = true
   function OpenSkills()
     if you.turns() < 2 and need_skills_opened then
@@ -1195,6 +1227,8 @@ ai += hat of spirit shield:Spirit
         you.train_skill("Maces & Flails", 2)
         you.set_training_target("Shields", 5)
         you.train_skill("Shields", 2)
+        you.set_training_target("Throwing", 2)
+        you.train_skill("Throwing", 1)
       end
 
       need_skills_opened = false
@@ -1205,19 +1239,19 @@ ai += hat of spirit shield:Spirit
   -- == Armour/Weapon autopickup by rwbarton, enhanced by HDA with fixes from Bloaxor == --
   -- with l1quidcryst4l mods
 
-  function is_in_inventory(item_name)
+  function find_in_inventory(item_name)
     for _, item in ipairs(items.inventory()) do
       if item.name():find(item_name) then
-        return true
+        return item
       end
     end
 
-    return false
+    return nil
   end
 
   function maybe_early_pickup(found_item_name, desired_item_name)
     local item_matches = found_item_name:find(desired_item_name)
-    return item_matches and you.xl() < 5 and not is_in_inventory(desired_item_name)
+    return item_matches and you.xl() < 5 and not find_in_inventory(desired_item_name)
   end
 
   local acquired_gold_dragon = false
