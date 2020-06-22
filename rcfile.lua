@@ -686,7 +686,7 @@ ai += hat of spirit shield:Spirit
     crawl.setopt("use_animations = 0")
 
     did_exit_killhole()
-    if in_killhole() then
+    if in_killhole() or get_monster_threat_level() < 2 then
       crawl.setopt("autofight_stop = 40")
     end
 
