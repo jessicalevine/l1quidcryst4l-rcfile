@@ -1238,6 +1238,28 @@ ai += hat of spirit shield:Spirit
 
   -- == Armour/Weapon autopickup by rwbarton, enhanced by HDA with fixes from Bloaxor == --
   -- with l1quidcryst4l mods
+  
+  function best_weapon_skill()
+    weapon_skills = {}
+    weapon_skills["Short Blades"] = you.skill("Short Blades")
+    weapon_skills["Long Blades"] = you.skill("Long Blades")
+    weapon_skills["Axes"] = you.skill("Axes")
+    weapon_skills["Maces & Flails"] = you.skill("Maces & Fails")
+    weapon_skills["Polearms"] = you.skill("Polearms")
+    weapon_skills["Staves"] = you.skill("Staves")
+    weapon_skills["Unarmed Combat"] = you.skill("Unarmed Combat")
+
+    local max_skill_name = next(weapon_skills)
+    local max_skill_int = weapon_skills[max_skill_name]
+
+    for k, v in pairs(weapon_skills) do
+      if weapon_skills[k] > max_skill_int then
+        max_skill_name, max_skill_int = k, v
+      end
+    end
+
+    return max_skill_name
+  end
 
   function find_in_inventory(item_name)
     for _, item in ipairs(items.inventory()) do
@@ -1366,27 +1388,8 @@ ai += hat of spirit shield:Spirit
         end
       end
 
-      -- Find your best weapon skill
-      weapons_skills = {}
-      weapons_skills["Short Blades"] = you.skill("Short Blades")
-      weapons_skills["Long Blades"] = you.skill("Long Blades")
-      weapons_skills["Axes"] = you.skill("Axes")
-      weapons_skills["Maces & Flails"] = you.skill("Maces & Fails")
-      weapons_skills["Polearms"] = you.skill("Polearms")
-      weapons_skills["Staves"] = you.skill("Staves")
-      weapons_skills["Unarmed Combat"] = you.skill("Unarmed Combat")
-
-      local max_skill_name = next(weapons_skills)
-      local max_skill_int = weapons_skills[max_skill_name]
-
-      for k, v in pairs(weapons_skills) do
-        if weapons_skills[k] > max_skill_int then
-          max_skill_name, max_skill_int = k, v
-        end
-      end
-
-      -- Pick up all artefacts of your best weapon skill
-      if (max_skill_name == it.weap_skill) then
+      -- l1quidcryst4l mod: Pick up all artefacts of your best weapon skill
+      if (best_weapon_skill() == it.weap_skill) then
         if (it.artefact) then return true end
       end
 
