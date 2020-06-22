@@ -1,43 +1,44 @@
 # TEAMNAME Gay Orb Desirers
 # TEAMMEMBERS autonomousgrandpa Grumpdoggo crybernetics
 
-travel_key_stop = false
-explore_wall_bias = 3
-explore_auto_rest = true
-warn_hatches = true
-
-view_delay = 200
-
+# == l1quidcryst4l Crawl Opts ==
+# Eating QoL
 easy_eat_chunks  = true
 auto_eat_chunks = true
 auto_drop_chunks = yes
 confirm_butcher = never
 auto_butcher = hungry
 
-default_manual_training = true
+# Autoexplore
+travel_key_stop = false
+explore_wall_bias = 3
+explore_auto_rest = true
 
-show_more=false
-
+# Autofight
 fire_order = launcher
 fire_order += javelin, boomerang, stone, return
-
-hp_colour = 100:green, 99:lightgray, 75:yellow, 50:lightred, 25:red
 autofight_stop = 60                                                
-item_stack_summary_minimum = 6
 
-allow_self_target = false
+# UI Tweaks
+show_more=false
 sort_menus = true        
+view_delay = 200
+warn_hatches = true
 equip_unequip = true
-
 view_max_height = 71
 msg_min_height = 12
 msg_max_height = 20
-
 show_game_time = false
+item_stack_summary_minimum = 6
+hp_colour = 100:green, 99:lightgray, 75:yellow, 50:lightred, 25:red
 
+# Misc options
+default_manual_training = true
+allow_self_target = false
 drop_filter += forbidden
 
-# Treat a, b, i, t, r, w as taken
+# Item slot assignments
+# Treat a, b, i, t, r, w as taken so no wrong scrolls on familiar keys
 item_slot ^= scroll:cdefghjklmnopqsuvxyz
 item_slot ^= blinking:b
 item_slot ^= identify:i
@@ -58,6 +59,7 @@ is ^= (^|[0-9] )javelin:v
 is ^= (^|[0-9] )boomerang:t
 is ^= curare:C
 
+# Class and god conditional options
 : if you.god():find("Beogh") then
   force_more_message += Your orc.*dead
   force_more_message += Your orc.*dies
@@ -79,7 +81,7 @@ force_more_message += MONSTERS ARE TOO THREATENING
 force_more_message += Done exploring
 force_more_message += Partly explored
 
-### MACROS ###
+# Macros
 macros += M \{223} \{6}artefact\{32}||\{32}ego\{32}||\{32}whip\{32}||\{32}plate\{13}
 macros += M \{169} \{6}altar\{13}
 macros += M p ===autoplay
@@ -390,6 +392,8 @@ ai += gloves of archery:Ranged Slay+4
 ai += hat of spirit shield:Spirit
 
 {
+  -- Begin lua scripting --
+
   -- Dumps table to string
   --
   -- Useful for debugging but also used by my fixed version of RapidFire
