@@ -1008,10 +1008,16 @@ ai += hat of spirit shield:Spirit
 
     local empty_spaces = 0
     for k,v in pairs(surrounding_coords) do
-      local feature = view.feature_at(tile_rel_to_player_x+v[1], tile_rel_to_player_y+v[2])
+      x, y = v[1], v[2]
+      local feature = view.feature_at(tile_rel_to_player_x+x, tile_rel_to_player_y+y)
+
+      -- debug_print("feature at: " ..
+      --             fmt_coords(tile_rel_to_player_x+x, tile_rel_to_player_y+y) ..
+      --             " " .. feature)
+      --
       if not (feature and feature:find("wall")) then
         -- Bug in lua library? "attempt to call field 'feature_is_solid' (a nil value)"
-        -- if travel.feature_is_solid(view.feature_at(v[1], v[2])) then
+        -- if travel.feature_is_solid(view.feature_at(x, y)) then
         empty_spaces = empty_spaces + 1
       end
     end
