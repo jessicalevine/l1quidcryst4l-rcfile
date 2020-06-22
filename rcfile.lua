@@ -37,7 +37,7 @@ show_game_time = false
 
 drop_filter += forbidden
 
-# No a, b, i, t, r, w
+# Treat a, b, i, t, r, w as taken
 item_slot ^= scroll:cdefghjklmnopqsuvxyz
 item_slot ^= blinking:b
 item_slot ^= identify:i
@@ -59,22 +59,22 @@ is ^= (^|[0-9] )boomerang:t
 is ^= curare:C
 
 : if you.god():find("Beogh") then
-force_more_message += Your orc.*dead
-force_more_message += Your orc.*dies
+  force_more_message += Your orc.*dead
+  force_more_message += Your orc.*dies
 : end 
 
 : if you.god() == "No God" and you.class() == "Fighter" then
-force_more_message += Found.*Okawaru 
-force_more_message += Found.*Trog
-force_more_message += Found.*Shining One
+  force_more_message += Found.*Okawaru 
+  force_more_message += Found.*Trog
+  force_more_message += Found.*Shining One
 : end 
 
 : if you.class() == "Fighter" then
-drop_filter += wizardry, magical power, amnesia, brilliance
-drop_filter += stabbing
+  drop_filter += wizardry, magical power, amnesia, brilliance
+  drop_filter += stabbing
 : end
 
-# More messages for autoexplorefight quickplay
+# More messages for autoplay quickplay
 force_more_message += MONSTERS ARE TOO THREATENING
 force_more_message += Done exploring
 force_more_message += Partly explored
@@ -82,10 +82,10 @@ force_more_message += Partly explored
 ### MACROS ###
 macros += M \{223} \{6}artefact\{32}||\{32}ego\{32}||\{32}whip\{32}||\{32}plate\{13}
 macros += M \{169} \{6}altar\{13}
-macros += M p ===autoexplorefight
+macros += M p ===autoplay
 macros += M - ===print_nearby_killhole
 # macros += M _ ===walk_one_step_to_killhole
-# commenting until fixed infinite loop case
+# commenting walk_one_step_to_killhole until fixed infinite loop case
 
 ### BORROWED ###
 
@@ -94,9 +94,10 @@ msc += mute:You start butchering
 msc += mute:You continue butchering
 msc += mute:This raw flesh tastes terrible
 
+# == Reddit force_mores ==
 # https://www.reddit.com/r/dcss/comments/6brrs8/formatting_force_more_message_option/dhpu179/
 
-#PORTALS
+# PORTALS
 force_more_message += Found a frozen archway
 force_more_message += Found a gateway leading out of the Abyss
 force_more_message += Found a labyrinth entrance
@@ -113,7 +114,7 @@ force_more_message += There is an entrance to a bailey on this level
 force_more_message += tolling of a bell
 force_more_message += wave of frost
 
-#GODBITS
+# GODBITS
 force_more_message += you are ready to make a new sacrifice
 force_more_message += grants you a gift
 force_more_message += mollified
@@ -122,7 +123,7 @@ force_more_message += sends forces
 force_more_message += sends monsters
 force_more_message += Vehumet offers
 
-#TIDBITS
+# TIDBITS
 force_more_message += You fall through a shaft
 force_more_message += Your transformation is almost over
 force_more_message += You are starting to lose your buoyancy
@@ -131,9 +132,9 @@ force_more_message += evaporates and reforms
 force_more_message += sentinel's mark
 force_more_message += Your lamp of fire has recharged.
 force_more_message += You have got your breath back.
-# '
+# ' end quote for lua syntax highlighting
 
-#UNIQUE WARNINGS
+# UNIQUE WARNINGS
 force_more_message += Agnes .*into view.
 force_more_message += Aizul .*into view.
 force_more_message += Antaeus .*into view.
@@ -388,13 +389,12 @@ ai += gloves of dexterity:Dex+3
 ai += gloves of archery:Ranged Slay+4
 ai += hat of spirit shield:Spirit
 
-# https://github.com/HilariousDeathArtist/DCSSConfigFile/blob/master/HilariousDeathArtist.txt
-
-beogh_autopickup = you.god():find("Beogh")
-
-# == Autoexplore+fight with adaptations from HilariousDeathArtist == #
 {
-
+  -- Dumps table to string
+  --
+  -- Useful for debugging but also used by my fixed version of RapidFire
+  -- Studio's A* implementation (I replaced table-keys with dumped table
+  -- keys because you can't effectively compare tables.)
   function dump(o)
     if type(o) == 'table' then
       local s = '{ '
@@ -411,7 +411,9 @@ beogh_autopickup = you.god():find("Beogh")
       return tostring(o)
     end
   end
-  -- ======================================================================
+
+  -- == Imported A* algorithm for autoplay pathing (with l1quidcryst4l bugfixes) == --
+  --
   -- Copyright (c) 2012 RapidFire Studio Limited 
   -- All Rights Reserved. 
   -- http://www.rapidfirestudio.com
@@ -434,8 +436,6 @@ beogh_autopickup = you.god():find("Beogh")
   -- CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
   -- TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
   -- SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-  -- ======================================================================
-
 
   ----------------------------------------------------------------
   -- local variables
@@ -640,24 +640,27 @@ beogh_autopickup = you.god():find("Beogh")
   end
   -- end A* pathing
 
-  -- l1quidcryst4l locals
-  local turns_waited = 0
-  local yelled_in_killhole = false
-  local was_in_killhole = false
-
   -- From AnnounceDamage
+  -- (some also in use by autoplay)
   local previous_hp = 0
   local previous_mp = 0
   local previous_form = ""
   local was_berserk_last_turn = false
   -- End AnnounceDamage locals
 
-  function autoexplorefight()
-    -- Don't animate for fastplay
+  -- === l1quidcryst4l autoplay === --
+  local turns_waited = 0
+  local yelled_in_killhole = false
+  local was_in_killhole = false
+
+  -- Top level autoplay function
+  -- Handles updating state and setting options
+  function autoplay()
+    -- Don't animate when playing for speed
     crawl.setopt("use_animations = 0")
 
     did_exit_killhole()
-    if in_kill_hole() then
+    if in_killhole() then
       crawl.setopt("autofight_stop = 40")
     end
 
@@ -667,6 +670,7 @@ beogh_autopickup = you.god():find("Beogh")
     crawl.setopt("use_animations = beam, range, hp, monster_in_sight, pickup, monster, player, branch_entry")
   end
 
+  -- Main logic for taking actions during autoplay
   function all_actions()
     local mp, max_mp = you.mp()
     local hp, max_hp = you.hp()
@@ -686,7 +690,7 @@ beogh_autopickup = you.god():find("Beogh")
 
       -- Greater turns for more safety, less for more speed
       if turns_waited > 1 then
-        take_appropriate_action()
+        autoplay_act_from_safety()
         crawl.mpr("Done waiting for monsters. Taking action.")
         return
       end
@@ -696,21 +700,22 @@ beogh_autopickup = you.god():find("Beogh")
       end
     end
 
-    take_appropriate_action()
+    autoplay_act_from_safety()
   end
 
-  -- @return true if took action or wait
+  -- @return true if took action or waited
+  -- If false, caller should take actions
   function maybe_yell_in_killhole_or_wait()
     if you.feel_safe() then
-      if in_kill_hole() and not yelled_in_killhole then
+      if in_killhole() and not yelled_in_killhole then
         crawl.sendkeys('tt')
         yelled_in_killhole = true
         return true
-      elseif in_kill_hole() and yelled_in_killhole then
+      elseif in_killhole() and yelled_in_killhole then
 
         if turns_waited > 3 then
           crawl.mpr("Done waiting for monsters. Taking action.")
-          take_appropriate_action()
+          autoplay_act_from_safety()
           return true
         end
 
@@ -722,11 +727,15 @@ beogh_autopickup = you.god():find("Beogh")
     return false
   end
 
-  function take_appropriate_action()
+  -- Encapsulates the logic for what action to take in safe situations so that
+  -- top level caller can invoke this logic conditionally
+  --
+  -- Checks to ensure you're safe, just in case
+  function autoplay_act_from_safety()
     if you.feel_safe() then
       autoexplore()
       record_acted()
-    elseif monsters_too_threatening() and not in_kill_hole() then
+    elseif monsters_too_threatening() and not in_killhole() then
       crawl.mpr("MONSTERS ARE TOO THREATENING! Retreat to a killhole.")
       print_nearby_killhole(true)
     elseif items.fired_item() and not can_see_reach_or_threatening_ranged_monsters() then
@@ -763,7 +772,7 @@ beogh_autopickup = you.god():find("Beogh")
     if ms then
       for _, m in ipairs(ms) do
         mpath = path_to_player({x=m:x_pos(), y=m:y_pos()})
-        return mpath and in_kill_hole(mpath[2].x, mpath[2].y)
+        return mpath and in_killhole(mpath[2].x, mpath[2].y)
       end
     end
   end
@@ -791,7 +800,7 @@ beogh_autopickup = you.god():find("Beogh")
   function find_nearby_killhole()
     killholes = {}
     for _, tile in ipairs(ordered_visible_tiles) do
-      if in_kill_hole(tile.x, tile.y) then
+      if in_killhole(tile.x, tile.y) then
         return tile
       end
     end
@@ -800,12 +809,12 @@ beogh_autopickup = you.god():find("Beogh")
   -- makes sure we dont yell and wait every step through a killhole
   function did_exit_killhole()
     -- reset yelled_in_killhole
-    if was_in_killhole and not in_kill_hole then
+    if was_in_killhole and not in_killhole then
       yelled_in_killhole = false
       return true
     end
 
-    was_in_killhole = in_kill_hole
+    was_in_killhole = in_killhole
     return false
   end
 
@@ -871,7 +880,7 @@ beogh_autopickup = you.god():find("Beogh")
   end
 
 
-  function in_kill_hole(tile_rel_to_player_x, tile_rel_to_player_y)
+  function in_killhole(tile_rel_to_player_x, tile_rel_to_player_y)
     -- Defaults to checking if player in killhole
     if tile_rel_to_player_x == nil then
       tile_rel_to_player_x = 0
@@ -896,7 +905,7 @@ beogh_autopickup = you.god():find("Beogh")
   end
 
   function walk_one_step_to_killhole()
-    if in_kill_hole() then
+    if in_killhole() then
       crawl.mpr("You're already in a killhole!")
       return
     end
@@ -931,12 +940,6 @@ beogh_autopickup = you.god():find("Beogh")
     crawl.sendkeys('o')
   end
 
-  -- TODO remove replaced by you.feel_safe()
-  function is_safe()
-    local first_monster = next(getMonsterList())
-    return first_monster == nil
-  end
-
   function monsters_too_threatening()
     ms = get_all_monsters() 
 
@@ -963,18 +966,11 @@ beogh_autopickup = you.god():find("Beogh")
     return total_threat
   end
 
-  -- function sum_table(matrix)
-  --   local sum = 0
-  --   for k,v in pairs(matrix) do
-  --     sum = sum + v
-  --   end
-  --   return sum
-  -- end
-
   function really_need_eat()
     return you.hunger() < 2067
   end
 
+  -- Borrowed from HDATravel
   function should_rest(hp, mp, max_hp, max_mp)
     local you_are_mummy = string.find(you.race(), "Mummy")
     local you_are_deep_dwarf = string.find(you.race(), "Deep Dwarf")
@@ -988,11 +984,9 @@ beogh_autopickup = you.god():find("Beogh")
     or (((hp < max_hp) or (mp < max_mp)) and you_are_mummy))
   end
 
-  -- AnnounceDamage
-  local previous_hp = 0
-  local previous_mp = 0
-  local previous_form = ""
-  local was_berserk_last_turn = false
+  -- == AnnounceDamage == --
+  -- From HilariousDeathArtist HDamage
+  -- NOTE Some AnnounceDamage locals are defined before l1quidcryst4l autoplay
 
   function AnnounceDamage()
     local current_hp, max_hp = you.hp()
@@ -1120,9 +1114,7 @@ beogh_autopickup = you.god():find("Beogh")
     previous_form = current_form
     was_berserk_last_turn = you_are_berserk
   end
-}
 
-{
   local force_mores_XL5 = false
   function l1quidcryst4l_dynamic_force_mores()
     -- Don't care when we're grabbed early
@@ -1147,12 +1139,9 @@ beogh_autopickup = you.god():find("Beogh")
     OpenSkills()
     l1quidcryst4l_dynamic_force_mores()
   end
-}
 
-####################
-# Opens skill menu #
-####################
-{
+  -- == Opens skill menu == --
+  -- From HDA?
   local need_skills_opened = true
   function OpenSkills()
     if you.turns() < 2 and need_skills_opened then
@@ -1167,11 +1156,10 @@ beogh_autopickup = you.god():find("Beogh")
       crawl.sendkeys("m")
     end
   end
-}
 
-# Armour/Weapon autopickup by rwbarton, enhanced by HDA with fixes from Bloaxor
-# with my mods
-{
+  -- == Armour/Weapon autopickup by rwbarton, enhanced by HDA with fixes from Bloaxor == --
+  -- with l1quidcryst4l mods
+
   add_autopickup_func(function(it, name)
 
     if you.class() == "Fighter" then
@@ -1273,7 +1261,7 @@ beogh_autopickup = you.god():find("Beogh")
 
       if (you.xl() < 12) or (you.god():find("Nemelex")
         or (you.god():find("Yred"))
-        or (beogh_autopickup)) then
+        or (you.god():find("Beogh"))) then
         if it.branded and not (it.name() == "club") then
           return false
         end
