@@ -998,6 +998,7 @@ ai += hat of spirit shield:Spirit
     return nil
   end
 
+  -- TODO Fix for out of view but remembered tiles (Crawl Lua doesn't expose?)
   function in_killhole(tile_rel_to_player_x, tile_rel_to_player_y)
     -- Defaults to checking if player in killhole
     if tile_rel_to_player_x == nil then
