@@ -772,7 +772,7 @@ ai += hat of spirit shield:Spirit
     if you.feel_safe() then
       autoexplore()
       record_acted()
-    elseif monsters_too_threatening() and not in_killhole() then
+    elseif monsters_too_threatening() and not in_relative_killhole() then
       print_nearby_killhole(true)
       crawl.mpr("<lightred>MONSTERS ARE TOO THREATENING!</lightred> Retreat to a killhole or stairdance.")
     elseif items.fired_item() and not can_see_reach_or_threatening_ranged_monsters() then
@@ -1027,6 +1027,65 @@ ai += hat of spirit shield:Spirit
     else
       return false
     end
+  end
+
+  function tile_in_tiles(tile, tiles)
+    for _, array_tile in ipairs(tiles) do
+      if array_tile.x == tile.x and array_tile.y == tile.y then
+        return true
+      end
+    end
+    
+    return false
+  end
+
+  function in_relative_killhole()
+    monsters = get_all_monsters()
+    if not monsters or #monsters < 2 then
+      -- There's not a meaningful result, but if there's no monsters or only
+      -- one can approach you're as or more 'safe' than a killhole, mostly!
+      debug_print("Not enough monsters to check killhole")
+      return true
+    end
+
+    adj_approach_x, adj_approach_y = nil, nil
+    for _, monster in ipairs(monsters) do
+      -- Find the tile adjacent to player that the monster will take if going
+      -- shortest path
+      adj_mpath = path_to_player({x=monster:x_pos(), y=monster:y_pos()})[2]
+
+      if not adj_approach_x then
+        adj_approach_x, adj_approach_y = adj_mpath.x, adj_mpath.y
+      else
+        -- If the monsters can approach at different tiles, you're not in a killhole
+        -- NOTE It's extra sensitive: they can't be on either side in a hallway
+        if adj_approach_x ~= adj_mpath.x or adj_approach_y ~= adj_mpath.y then
+          debug_print("Monsters approach in different places")
+          return false
+        end
+      end
+    end
+
+    -- The adjacent approach tile must not have open spaces also adjacent to
+    -- player (otherwise, this algor could miss non-shortest path approaches)
+    empty_spaces_arround_adj_approach = {}
+    for _, tile in ipairs(surrounding_tiles) do
+      adj_to_adj_approach_tile = {x = adj_approach_x + tile.x, y = adj_approach_y + tile.y}
+
+      -- Is this tile, which is adjacent to the adjacent approach tile, also 
+      -- adjacent to the player?
+      if tile_in_tiles(adj_to_adj_approach_tile, surrounding_tiles) then
+        local feature = view.feature_at(adj_to_adj_approach_tile.x, adj_to_adj_approach_tile.y)
+        debug_print("Feature at adj_to_adj_approach_tile: " .. feature)
+
+        if not feature:find("wall") then
+          -- Open space next to monster approach and player!
+          return false
+        end
+      end
+    end 
+
+    return true
   end
 
   function walk_one_step_to_killhole()
