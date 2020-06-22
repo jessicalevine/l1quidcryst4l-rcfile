@@ -409,6 +409,12 @@ ai += hat of spirit shield:Spirit
 
 {
   -- Begin lua scripting --
+  local verbose = false
+  function debug_print(str)
+    if verbose then
+      crawl.mpr("<cyan>" .. str .. "</cyan>")
+    end
+  end
 
   -- Dumps table to string
   --
@@ -916,6 +922,45 @@ ai += hat of spirit shield:Spirit
     return false
   end
 
+  -- Get map of terrain in view ordered by nearest
+  --
+  -- @return Array of {feature, x, y} tables, ascending by dist from player
+  --
+  -- WARNING terrain_in_view_memoized is memoized for performance and MUST be
+  -- reset in ready() at the start of each turn
+  local terrain_in_view_memoized = nil
+  function terrain_in_view()
+    if terrain_in_view_memoized then
+      return terrain_in_view_memoized
+    end
+
+    ordered_terrain_in_view = {}
+    for _, tile in ipairs(ordered_visible_tiles) do
+      feature = view.feature_at(tile.x, tile.y)
+      table.insert(ordered_terrain_in_view, {feature=feature,x=tile.x,y=tile.y})
+    end
+
+    terrain_in_view_memoized = ordered_terrain_in_view
+    return terrain_in_view_memoized
+  end
+
+  function reset_memoized_terrain_in_view()
+    debug_print("Resetting terrain memo")
+    terrain_in_view_memoized = nil
+  end
+
+  -- @return {feature, x, y} of closest matching terrain, nil if no match
+  function find_terrain_feature_in_view(feature)
+    for _, terrain_table in ipairs(terrain_in_view()) do
+      if terrain_table.feature:find(feature) then
+        debug_print("Found terrain: " .. feature)
+        return terrain_table
+      end
+    end
+
+    debug_print("Did not find terrain: " .. feature)
+    return nil
+  end
 
   function in_killhole(tile_rel_to_player_x, tile_rel_to_player_y)
     -- Defaults to checking if player in killhole
@@ -1000,6 +1045,7 @@ ai += hat of spirit shield:Spirit
       total_threat = total_threat + m:threat()
     end
 
+    debug_print("Monster threat: " .. total_threat)
     return total_threat
   end
 
@@ -1162,9 +1208,11 @@ ai += hat of spirit shield:Spirit
   end
 
   function reminder_to_stairdance()
-    if view.feature_at (0, 0):find("stairs_up") then
-      if get_monster_threat_level() > 1 then
-        crawl.mpr("SUGGESTION: Why not stairdance?!")
+    terrain_table = find_terrain_feature_in_view("stairs_up") 
+    if terrain_table then
+      if get_monster_threat_level() > 1 or #get_all_monsters() > 7 then
+        stair_loc_str = "Stairs at x: " .. terrain_table.x .. ", y: " .. terrain_table.y
+        crawl.mpr("<yellow>SUGGESTION:</yellow> Why not stairdance?! " .. stair_loc_str)
       end
     end
   end
@@ -1205,9 +1253,11 @@ ai += hat of spirit shield:Spirit
 
   function reset_memoized_variables()
     reset_memoized_monster_list()
+    reset_memoized_terrain_in_view()
   end
 
   function ready()
+    reset_memoized_variables()
     reminder_to_stairdance()
 
     -- HDA functions
@@ -1216,7 +1266,6 @@ ai += hat of spirit shield:Spirit
     OpenSkills()
 
     l1quidcryst4l_dynamic_force_mores()
-    reset_memoized_monster_list()
   end
 
   -- == Opens skill menu == --
