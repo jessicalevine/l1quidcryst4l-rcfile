@@ -74,7 +74,10 @@ drop_filter += wizardry, magical power, amnesia, brilliance
 drop_filter += stabbing
 : end
 
+# More messages for autoexplorefight quickplay
 force_more_message += MONSTERS ARE TOO THREATENING
+force_more_message += Done exploring
+force_more_message += Partly explored
 
 ### MACROS ###
 macros += M \{223} \{6}artefact\{32}||\{32}ego\{32}||\{32}whip\{32}||\{32}plate\{13}
@@ -949,6 +952,17 @@ beogh_autopickup = you.god():find("Beogh")
     return total_threat > 4
   end
 
+  function get_monster_threat_level()
+    ms = get_all_monsters() 
+
+    total_threat = 0
+    for _, m in ipairs(ms) do
+      total_threat = total_threat + m:threat()
+    end
+
+    return total_threat
+  end
+
   -- function sum_table(matrix)
   --   local sum = 0
   --   for k,v in pairs(matrix) do
@@ -1118,7 +1132,16 @@ beogh_autopickup = you.god():find("Beogh")
     end
   end
 
+  function reminder_to_stairdance()
+    if view.feature_at (0, 0):find("stairs_up") then
+      if get_monster_threat_level() > 1 then
+        crawl.mpr("SUGGESTION: Why not stairdance?!")
+      end
+    end
+  end
+
   function ready()
+    reminder_to_stairdance()
     AnnounceDamage()
     SpoilerAlert()
     OpenSkills()
