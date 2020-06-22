@@ -1181,8 +1181,8 @@ ai += hat of spirit shield:Spirit
   -- with l1quidcryst4l mods
 
   function is_in_inventory(item_name)
-    for _, item, in ipairs(items.inventory) do
-      if item.name:find(item_name) then
+    for _, item in ipairs(items.inventory()) do
+      if item.name():find(item_name) then
         return true
       end
     end
@@ -1190,8 +1190,9 @@ ai += hat of spirit shield:Spirit
     return false
   end
 
-  function maybe_early_pickup(item_name)
-    return name:find(item_name) and you.xl() < 5 and not is_in_inventory(item_name)
+  function maybe_early_pickup(found_item_name, desired_item_name)
+    local item_matches = found_item_name:find(desired_item_name)
+    return item_matches and you.xl() < 5 and not is_in_inventory(desired_item_name)
   end
 
   local acquired_gold_dragon = false
@@ -1208,8 +1209,8 @@ ai += hat of spirit shield:Spirit
         return true
       end
 
-      maybe_early_pickup("whip")
-      maybe_early_pickup("plate")
+      if maybe_early_pickup(name, "whip") then return true end
+      if maybe_early_pickup(name, "plate") then return true end
 
       if name:find("wizardry") then return false end
       if name:find("magical power") then return false end
