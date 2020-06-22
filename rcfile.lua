@@ -773,7 +773,18 @@ ai += hat of spirit shield:Spirit
     end
   end
 
+  -- Get list of all hostile monsters in view
+  --
+  -- Adapted from HDA getMonsterList
+  --
+  -- WARNING monsters_in_view_memoized is memoized for performance and MUST be
+  -- reset in ready() at the start of each turn
+  local monsters_in_view_memoized = nil
   function get_all_monsters()
+    if monsters_in_view_memoized then
+      return monsters_in_view_memoized
+    end
+
     local monsters = {}
     for x = -8,8 do
       for y = -8,8 do
@@ -784,7 +795,13 @@ ai += hat of spirit shield:Spirit
         end
       end
     end
+
+    monsters_in_view_memoized = monsters
     return monsters
+  end
+
+  function reset_memoized_monster_list()
+    monsters_in_view_memoized = nil
   end
 
   function monster_will_enter_killhole()
@@ -1152,12 +1169,20 @@ ai += hat of spirit shield:Spirit
     end
   end
 
+  function reset_memoized_variables()
+    reset_memoized_monster_list()
+  end
+
   function ready()
     reminder_to_stairdance()
+
+    -- HDA functions
     AnnounceDamage()
     SpoilerAlert()
     OpenSkills()
+
     l1quidcryst4l_dynamic_force_mores()
+    reset_memoized_monster_list()
   end
 
   -- == Opens skill menu == --
