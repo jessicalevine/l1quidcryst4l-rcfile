@@ -756,8 +756,8 @@ ai += hat of spirit shield:Spirit
       autoexplore()
       record_acted()
     elseif monsters_too_threatening() and not in_killhole() then
-      crawl.mpr("MONSTERS ARE TOO THREATENING! Retreat to a killhole.")
       print_nearby_killhole(true)
+      crawl.mpr("<lightred>MONSTERS ARE TOO THREATENING!</lightred> Retreat to a killhole or stairdance.")
     elseif items.fired_item() and not can_see_reach_or_threatening_ranged_monsters() then
       -- Only if something is quivered
       hit_closest_nomove()
