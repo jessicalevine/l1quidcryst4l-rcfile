@@ -47,9 +47,12 @@ item_slot ^= remove curse:r
 item_slot ^= enchant armour:a
 item_slot ^= enchant weapon:w
 
-item_slot ^= lightning rod:l
-item_slot ^= paralysis:p
-item_slot ^= flame:w
+item_slot ^= heal wounds:H
+
+item_slot ^= lightning rod:L
+item_slot ^= paralysis:P
+item_slot ^= flame:F
+item_slot ^= digging:D
 
 # from Yermak
 is := item_slot
@@ -72,8 +75,8 @@ is ^= curare:C
 : end 
 
 : if you.class() == "Fighter" then
-  drop_filter += wizardry, magical power, amnesia, brilliance
-  drop_filter += stabbing
+  drop_filter += wizardry, magical power, amnesia, brilliance, intelligence
+  drop_filter += stabbing, stealth
 : end
 
 # More messages for autoplay quickplay
@@ -322,10 +325,13 @@ flash_screen_message += distortion
 
 # == Autoinscribe ==
 
-# Set Alias
+# Set alias for autoinscribe
 ai := autoinscribe
 
+# Do not automatically throw throwing nets
 ai += throwing net:=f
+
+# Do not list useless items on ground
 ai += club:=k
 ai += skeleton:=k
 
@@ -334,15 +340,19 @@ ai += skeleton:=k
 ai += dispersal:=f
 ai += amulet of faith:Faith, !P
 
-# Consumables
+# Consumables to confirm before use
 ai += (bad|dangerous)_item.*potion:!q
 ai += potions? of berserk rage:!q
 ai += potions? of cure mutation:!q
+ai += potions? of heal wounds:!q
+
 ai += (bad|dangerous)_item.*scroll:!r
 ai += scrolls? of blinking:!r
 ai += scrolls? of holy word:!r
 ai += scrolls? of magic mapping:!r
 ai += scrolls? of vulnerability:!r
+ai += scrolls? of summoning:!r
+
 ai += box of beasts:!r
 
 # Body Armour
@@ -357,6 +367,9 @@ ai += steam dragon (armour|hide):rSteam
 ai += storm dragon (armour|hide):rElec
 ai += swamp dragon (armour|hide):rPois
 ai += troll (hide|leather armour):regen
+: if not string.find(you.race(), "Troll") then
+  ai += troll (hide|leather armour):=k
+: end
 
 # Body Armour Egos
 ai += ([^l] leather armour|mail|plate armour|robe|skin) of cold resistance:rC+
@@ -1164,18 +1177,19 @@ ai += hat of spirit shield:Spirit
   -- == Armour/Weapon autopickup by rwbarton, enhanced by HDA with fixes from Bloaxor == --
   -- with l1quidcryst4l mods
 
+  local acquired_gold_dragon = false
   add_autopickup_func(function(it, name)
 
+    -- l1quidcryst4l figher gotos
     if you.class() == "Fighter" then
       if name:find("curare") then return true end
-      if name:find("atropa") then return true end
-      if you.xl() < 15 then
-        if name:find("boomerang") then return true end
-        if name:find("javelin") then return true end
-      end
       if name:find("silver") then return true end
       if name:find("throwing net") then return true end
-      if name:find("gold dragon scales") then return true end
+
+      if name:find("gold dragon scales") and not acquired_gold_dragon then
+        acquired_gold_dragon = true
+        return true
+      end
 
       if name:find("wizardry") then return false end
       if name:find("magical power") then return false end
@@ -1188,6 +1202,7 @@ ai += hat of spirit shield:Spirit
       if name:find("datura") then return false end
       if name:find("stabbing") then return false end
     end
+    -- end
 
 
     local class = it.class(true)
