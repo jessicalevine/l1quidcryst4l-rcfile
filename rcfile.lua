@@ -835,7 +835,7 @@ ai += hat of spirit shield:Spirit
     nearby_killhole = find_nearby_killhole()
 
     if nearby_killhole then
-      crawl.mpr("Killhole found: " .. fmt_coords(nearby_killhole.x, nearby_killhole.y))
+      print_suggestion("Use nearby killhole: " .. color_msg(fmt_coords(nearby_killhole.x, nearby_killhole.y),"yellow"))
     elseif not dont_print_message_if_not_found then
       -- Double negative cuz keybinding calls with no arguments
       crawl.mpr("No visible killhole found.")
