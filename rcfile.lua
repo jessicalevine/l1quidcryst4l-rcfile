@@ -851,13 +851,33 @@ ai += hat of spirit shield:Spirit
     end
   end
 
+  -- TODO Evaluates distance as the crow flies, meaning killhole may be far
+  -- away by foot or even unreachable. Improve the calculate by path distance
+  -- taking into account performance and unseen tiles
+  --
+  -- WARNING nearby_killhole_memoized and no_nearby_killhole are memoized for
+  -- performance and MUST be reset in ready() at the start of each turn
+  nearby_killhole_memoized = nil
+  no_nearby_killhole = nil
   function find_nearby_killhole()
-    killholes = {}
+    if nearby_killhole_memoized or no_nearby_killhole then
+      return nearby_killhole_memoized
+    end
+
     for _, tile in ipairs(ordered_visible_tiles) do
       if in_killhole(tile.x, tile.y) then
+        nearby_killhole_memoized = tile
         return tile
       end
     end
+
+    no_nearby_killhole = true
+    return nil
+  end
+
+  function reset_memoized_nearby_killhole()
+    nearby_killhole_memoized = nil
+    no_nearby_killhole = nil
   end
 
   -- makes sure we dont yell and wait every step through a killhole
@@ -1315,6 +1335,7 @@ ai += hat of spirit shield:Spirit
   function reset_memoized_variables()
     reset_memoized_monster_list()
     reset_memoized_terrain_in_view()
+    reset_memoized_nearby_killhole()
   end
 
   function ready()
