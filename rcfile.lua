@@ -702,12 +702,23 @@ ai += hat of spirit shield:Spirit
     local hp, max_hp = you.hp()
     local need_to_recover = should_rest(hp, mp, max_hp, max_mp)
 
-    if you.feel_safe() then
-      if really_need_eat() and (hp > (max_hp * 0.6)) then
+    -- Handle dangerous hunger first
+    if really_need_eat() and not need_to_recover then
+      if you.feel_safe() then
+        -- (Maybe) Eat via autoexplore
         autoexplore()
         record_acted()
+        return
+      elseif get_monster_threat_level() < 2 and find_in_inventory("chunk") then
+        -- Eat in combat if it's safe to do so and you need
+        crawl.sendkeys("ee")
+        crawl.mpr("Autoeating")
+        record_acted()
+        return
       end
+    end
 
+    if you.feel_safe() then
       if need_to_recover then
         rest()
         crawl.mpr("Resting to recover.")
@@ -1050,7 +1061,8 @@ ai += hat of spirit shield:Spirit
   end
 
   function really_need_eat()
-    return you.hunger() < 2067
+    local hungry = 3
+    return you.hunger() < hungry
   end
 
   -- Borrowed from HDATravel
