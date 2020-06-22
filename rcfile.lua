@@ -79,10 +79,13 @@ is ^= curare:C
   drop_filter += stabbing, stealth
 : end
 
-# More messages for autoplay quickplay
+# Force More messages for autoplaying quickly
 force_more_message += MONSTERS ARE TOO THREATENING
 force_more_message += Done exploring
 force_more_message += Partly explored
+
+# Force More messages from mobwarnings
+force_more_message += YOU ARE IN FLIGHT VS. AIRSTRIKE!!!
 
 # Macros
 macros += M \{223} \{6}artefact\{32}||\{32}ego\{32}||\{32}whip\{32}||\{32}plate\{13}
@@ -1177,6 +1180,20 @@ ai += hat of spirit shield:Spirit
   -- == Armour/Weapon autopickup by rwbarton, enhanced by HDA with fixes from Bloaxor == --
   -- with l1quidcryst4l mods
 
+  function is_in_inventory(item_name)
+    for _, item, in ipairs(items.inventory) do
+      if item.name:find(item_name) then
+        return true
+      end
+    end
+
+    return false
+  end
+
+  function maybe_early_pickup(item_name)
+    return name:find(item_name) and you.xl() < 5 and not is_in_inventory(item_name)
+  end
+
   local acquired_gold_dragon = false
   add_autopickup_func(function(it, name)
 
@@ -1190,6 +1207,9 @@ ai += hat of spirit shield:Spirit
         acquired_gold_dragon = true
         return true
       end
+
+      maybe_early_pickup("whip")
+      maybe_early_pickup("plate")
 
       if name:find("wizardry") then return false end
       if name:find("magical power") then return false end
@@ -1896,9 +1916,9 @@ ai += hat of spirit shield:Spirit
     mobwarnings["electric golem"] = "is fast, has electric attacks, and blinks!"
     mobwarnings["Nikola"] = "casts Lightning Bolt, Chain Lightning and blinks!"
     mobwarnings["shock serpent"] = "is fast, casts Bolt of Lightning, does electric damage, and causes electric damage when injured!"
-    mobwarnings["Sojobo"] = "is fast and can cast Airstrike (STOP FLYING!!!) and Lightning Bolt!"
+    mobwarnings["Sojobo"] = "is fast and can cast Airstrike and Lightning Bolt!"
     mobwarnings["storm dragon"] = "can hit for high damage in melee and has a nasty electric breath attack!"
-    mobwarnings["titan"] = "can cast Lightning Bolt and Airstrike (STOP FLYING!!!)!"
+    mobwarnings["titan"] = "can cast Lightning Bolt and Airstrike!"
     local electricwarning = ""
     if no_rE then
       electricwarning = "<red> You are not wearing rElec!</red>"
@@ -1966,12 +1986,12 @@ ai += hat of spirit shield:Spirit
       mobwarnings["Xtahua"] = "does high damage in melee!"
     end
 
-    mobwarnings["air mage"] = "can cast Airstrike (STOP FLYING!!!)!"
-    mobwarnings["blizzard demon"] = "can cast Airstrike (STOP FLYING!!!)!"
-    mobwarnings["Gastronok"] = "can cast Airstrike (STOP FLYING!!!)!"
-    mobwarnings["wind drake"] = "can cast Airstrike (STOP FLYING!!!) and push you away!"
+    mobwarnings["air mage"] = "can cast Airstrike!"
+    mobwarnings["blizzard demon"] = "can cast Airstrike!"
+    mobwarnings["Gastronok"] = "can cast Airstrike!"
+    mobwarnings["wind drake"] = "can cast Airstrike and push you away!"
     if you_are_flying then
-      local flightwarning = " <red>You are in flight!</red>"
+      local flightwarning = " <red>YOU ARE IN FLIGHT VS. AIRSTRIKE!!!</red>"
       mobwarnings["air mage"] = mobwarnings["air mage"] .. flightwarning
       mobwarnings["blizzard demon"] = mobwarnings["blizzard demon"]..flightwarning
       mobwarnings["Gastronok"] = mobwarnings["Gastronok"]..flightwarning
