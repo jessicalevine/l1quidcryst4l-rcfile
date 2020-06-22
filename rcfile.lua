@@ -835,7 +835,7 @@ ai += hat of spirit shield:Spirit
     nearby_killhole = find_nearby_killhole()
 
     if nearby_killhole then
-      crawl.mpr("Killhole found: " .. nearby_killhole.x .. ", " .. nearby_killhole.y)
+      crawl.mpr("Killhole found: " .. fmt_coords(nearby_killhole.x, nearby_killhole.y))
     elseif not dont_print_message_if_not_found then
       -- Double negative cuz keybinding calls with no arguments
       crawl.mpr("No visible killhole found.")
@@ -921,6 +921,11 @@ ai += hat of spirit shield:Spirit
   surrounding_coords.b = {-1,  1}
   surrounding_coords.j = { 0,  1}
   surrounding_coords.n = { 1,  1}
+
+  local surrounding_tiles = {}
+  for k, v in pairs(surrounding_coords) do
+    table.insert(surrounding_tiles, {x=v[1],y=v[2]})
+  end
 
   function monster_adjacent()
     for k,v in pairs(surrounding_coords) do
@@ -1219,12 +1224,56 @@ ai += hat of spirit shield:Spirit
     end
   end
 
-  function reminder_to_stairdance()
-    terrain_table = find_terrain_feature_in_view("stairs_up") 
-    if terrain_table then
-      if get_monster_threat_level() > 1 or #get_all_monsters() > 7 then
-        stair_loc_str = "Stairs at x: " .. terrain_table.x .. ", y: " .. terrain_table.y
-        crawl.mpr("<yellow>SUGGESTION:</yellow> Why not stairdance?! " .. stair_loc_str)
+  function fmt_coords(x, y)
+    local x_coord
+    local y_coord
+
+    if x > 0 then
+      x_coord = x .. "E"
+    elseif x == 0 then
+      x_coord = "0"
+    else
+      x_coord = (-1 * x) .. "W"
+    end
+
+    if y > 0 then
+      y_coord = y .. "S"
+    elseif y == 0 then
+      y_coord = "0"
+    else
+      y_coord = (-1 * y) .. "N"
+    end
+
+    return "x: " .. x_coord .. ", y: " .. y_coord
+  end
+
+  function color_msg(msg, color)
+    return "<" .. color .. ">" .. msg .. "</" .. color .. ">"
+  end
+
+  function print_suggestion(suggestion_str)
+    crawl.mpr("<yellow>SUGGESTION:</yellow> " .. suggestion_str)
+  end
+
+  function movement_strategy_reminders()
+    if get_monster_threat_level() > 1 or #get_all_monsters() > 7 then
+      debug_print("Monster threat high enough to look for terrain")
+
+      local terrain_table = find_terrain_feature_in_view("stairs_up") 
+      if terrain_table then
+        stair_loc_str = color_msg(fmt_coords(terrain_table.x, terrain_table.y), "yellow")
+        print_suggestion("Why not stairdance?! Stairs at " .. stair_loc_str .. ".")
+      end
+
+      if get_monster_threat_level() > 2 and #get_all_monsters() > 2 then
+        debug_print("Monster threat high enough to look for killhole")
+        killhole = find_nearby_killhole()
+        if killhole and not killhole.x == 0 and killhole.y == 0 then
+          killhole_loc_str = color_msg(fmt_coords(killhole.x, killhole.y), "yellow")
+          print_suggestion("Use nearby killhole at " .. killhole_loc_str .. ".")
+        else
+          debug_print("In killhole or none found")
+        end
       end
     end
   end
@@ -1270,12 +1319,13 @@ ai += hat of spirit shield:Spirit
 
   function ready()
     reset_memoized_variables()
-    reminder_to_stairdance()
 
     -- HDA functions
     AnnounceDamage()
     SpoilerAlert()
     OpenSkills()
+
+    movement_strategy_reminders()
 
     l1quidcryst4l_dynamic_force_mores()
   end
