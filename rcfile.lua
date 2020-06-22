@@ -1992,7 +1992,7 @@ ai += hat of spirit shield:Spirit
     mobwarnings["Gastronok"] = "can cast Airstrike!"
     mobwarnings["wind drake"] = "can cast Airstrike and push you away!"
     if you_are_flying then
-      local flightwarning = " <red>YOU ARE IN FLIGHT VS. AIRSTRIKE!!!</red>"
+      local flightwarning = " <lightred>YOU ARE IN FLIGHT VS. AIRSTRIKE!!!</lightred>"
       mobwarnings["air mage"] = mobwarnings["air mage"] .. flightwarning
       mobwarnings["blizzard demon"] = mobwarnings["blizzard demon"]..flightwarning
       mobwarnings["Gastronok"] = mobwarnings["Gastronok"]..flightwarning
