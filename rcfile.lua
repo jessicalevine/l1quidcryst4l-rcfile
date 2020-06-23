@@ -93,7 +93,7 @@ macros += M \{169} \{6}altar\{13}
 macros += M p ===autoplay
 macros += M - ===print_nearby_killhole
 # macros += M _ ===walk_one_step_to_killhole
-# commenting walk_one_step_to_killhole until fixed infinite loop case
+# a* needs fixing first
 
 ### BORROWED ###
 
@@ -455,6 +455,7 @@ ai += hat of spirit shield:Spirit
   end
 
 
+  -- TODO Use 2D arrays not table keys cuz dump is sensitive to x/y reversal
   -- == Imported A* algorithm for autoplay pathing (with l1quidcryst4l bugfixes) == --
   --
   -- Copyright (c) 2012 RapidFire Studio Limited 
@@ -558,9 +559,10 @@ ai += hat of spirit shield:Spirit
       return flat_path
     end
 
-    if map [ dump(current_node) ] then
-      table.insert ( flat_path, 1, map [ dump(current_node) ] ) 
-      return unwind_path ( flat_path, map, map [ dump(current_node) ], start )
+    mapv = map[dump({x=current_node.x,y=current_node.y})] or map[dump({y=current_node.y,x=current_node.x})] 
+    if mapv then
+      table.insert ( flat_path, 1, mapv ) 
+      return unwind_path ( flat_path, map, mapv, start )
     end
   end
 
@@ -583,6 +585,8 @@ ai += hat of spirit shield:Spirit
       local current = lowest_f_score ( openset, f_score )
       if current.x == goal.x and current.y == goal.y then
         local path = unwind_path ( {}, came_from, goal, start )
+        debug_print(dump(came_from))
+        debug_print(fmt_coords(start.x,start.y) .. " " .. fmt_coords(goal.x,goal.y))
         table.insert ( path, goal )
         return path
       end
@@ -693,6 +697,10 @@ ai += hat of spirit shield:Spirit
     path_to({x=0,y=0}, goal)
   end
 
+  function path_from_player(goal)
+    path_to(goal, {x=0,y=0})
+  end
+
   -- @return list of tiles from adjacent to start at index 2 to goal
   -- will return nil if start = goal
   function path_to(start, goal)
@@ -708,11 +716,7 @@ ai += hat of spirit shield:Spirit
 
     debug_print("Pathing goal " ..fmt_coords(goal.x, goal.y) .. "; start " .. fmt_coords(start.x, start.y))
 
-    player_path = path (start, goal, ordered_potentially_visible_tiles, ignore  )
-    if player_path then
-      player_path [1] = nil
-    end
-    return player_path
+    return path (start, goal, ordered_potentially_visible_tiles, ignore  )
   end
 
   -- @return the tile adjacent to start in path, nil if no path
@@ -935,7 +939,7 @@ ai += hat of spirit shield:Spirit
   function path_to_nearby_killhole()
     nearby_killhole = find_nearby_killhole()
     if nearby_killhole then
-      return path_to_player(nearby_killhole)
+      return path_from_player(nearby_killhole)
     else
       return nil
     end
@@ -1238,10 +1242,13 @@ ai += hat of spirit shield:Spirit
       if path_to then
         walk_one_step_to_tile(path_to[2])
         return
+      else
+        crawl.mpr("Can't find path to killhole")
+        return
       end
     end
 
-    crawl.mpr("No nearby killhole!")
+    crawl.mpr("Can't walk when no nearby killhole!")
   end
 
   function walk_one_step_to_tile(target_tile)
