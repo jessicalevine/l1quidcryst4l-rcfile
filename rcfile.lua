@@ -701,11 +701,27 @@ ai += hat of spirit shield:Spirit
     path_to(goal, {x=0,y=0})
   end
 
+  function Tile(x, y)
+    return {x=x,y=y}
+  end
+
+  function manhattan_distance(start, goal)
+    return math.abs(start.x - goal.x) + math.abs(start.y - goal.y)
+  end
+
   -- @return list of tiles from adjacent to start at index 2 to goal
   -- will return nil if start = goal
   function path_to(start, goal)
     -- start == goal returns nil via pathing anyway so just skip the math
     if (start.x == goal.x) and (start.y == goal.y) then
+      return nil
+    end
+
+    -- Just don't do long pathing, it lags too much. Assume you can't path.
+    -- TODO This is inelegant and yields false negative for
+    -- monster_will_enter_killhole for long distances and we need to figure
+    -- out a way to fix that
+    if manhattan_distance(start, goal) > 5 then
       return nil
     end
 
@@ -910,13 +926,28 @@ ai += hat of spirit shield:Spirit
   function monster_will_enter_killhole()
     ms = get_all_monsters()
 
+    -- TODO Yields false negatives in order to prevent lag due to inefficient
+    -- pathing, could use improvement
+    local total_distance = 0
+    if ms then
+      for _, m in ipairs(ms) do
+         total_distance = total_distance + manhattan_distance(Tile(0,0), Tile(m:x_pos(), m:y_pos()))
+      end
+    end
+    if total_distance > 15 then
+      return false
+    end
+
     local all_monsters_enter = true
     if ms then
       for _, m in ipairs(ms) do
         local m_adj_tile = adj_tile_from_path({x=0,y=0}, {x=m:x_pos(), y=m:y_pos()})
         
-        -- If the monster can't path at all, we're 'safe' enough, so skip iter
+        -- 
         if m_adj_tile and not in_any_killhole(m_adj_tile.x, m_adj_tile.y) then
+          return false
+        elseif not m_adj_tile then
+          -- TODO Yields false negatives with path_to distance issues but necessary for now
           return false
         end
       end
@@ -1202,6 +1233,12 @@ ai += hat of spirit shield:Spirit
       else
         debug_print("Monster has no path " .. monster:name())
       end
+    end
+
+    if not adj_approach_x then
+      -- Couldn't path monster, probably due to false negative path_to issue
+      -- so just assume we're not in a killhole for safety. TODO improve.
+      return false
     end
 
     local tiles_around_target_tile = util.map(function(tile)
