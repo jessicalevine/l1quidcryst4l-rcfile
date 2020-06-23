@@ -528,7 +528,13 @@ ai += hat of spirit shield:Spirit
     local neighbors = {}
     for k,v in pairs ( surrounding_coords ) do
       neighbor = {x=theNode.x+v[1],y=theNode.y+v[2]}
-      if valid_node_func ( theNode, neighbor ) then
+
+      local validity = valid_node_func(theNode, neighbor)
+      if validity == nil then
+        return nil
+      end
+
+      if validity then
         table.insert ( neighbors, neighbor )
       end
     end
@@ -571,7 +577,6 @@ ai += hat of spirit shield:Spirit
   ----------------------------------------------------------------
 
   function a_star ( start, goal, nodes  )
-
     local closedset = {}
     local openset = { start }
     local came_from = {}
@@ -580,7 +585,12 @@ ai += hat of spirit shield:Spirit
     g_score [ dump(start) ] = 0
     f_score [ dump(start) ] = g_score [ dump(start) ] + heuristic_cost_estimate ( start, goal )
 
+    local iter = 0
     while #openset > 0 do
+      iter = iter + 1
+      if iter > 50 then
+        return nil
+      end
 
       local current = lowest_f_score ( openset, f_score )
       if current.x == goal.x and current.y == goal.y then
@@ -595,6 +605,12 @@ ai += hat of spirit shield:Spirit
       table.insert ( closedset, current )
 
       local neighbors = neighbor_nodes ( current, nodes )
+      
+      -- Translucent walls mean infinite loop for pathing, maybe!
+      if neighbors ==nil then
+        return nil
+      end
+
       for _, neighbor in ipairs ( neighbors ) do 
         if not_in ( closedset, neighbor ) then
 
@@ -660,6 +676,11 @@ ai += hat of spirit shield:Spirit
       local feature =  view.feature_at (node.x, node.y)
       debug_print("feature is: " .. feature)
       local validity = not (travel.feature_solid(feature) or feature == "unseen")
+
+      -- If they're trapped behind "clear" there might be no path & infinite loop!
+      if feature:find("clear") then
+        return nil
+      end
 
       debug_print("feature validity: " .. tostring(validity))
       valid_crawl_feature_cache[node.x][node.y] = validity
@@ -934,7 +955,7 @@ ai += hat of spirit shield:Spirit
          total_distance = total_distance + manhattan_distance(Tile(0,0), Tile(m:x_pos(), m:y_pos()))
       end
     end
-    if total_distance > 15 then
+    if total_distance > 14 or #ms > 4 then
       return false
     end
 
@@ -1201,7 +1222,7 @@ ai += hat of spirit shield:Spirit
     debug_print("Checking rel killhole: " .. tile_rel_to_player_x .. " " .. tile_rel_to_player_y)
 
     monsters = get_all_monsters()
-    if #monsters < 2 then
+    if #monsters < 2 or #monsters > 6 then
       -- No such thing as a relative killhole against 0/1 monster, as all
       -- pathing leads to single-file, but that doesn't actually mean you're
       -- in a relative killhole if another monster comes up.
