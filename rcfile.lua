@@ -413,6 +413,7 @@ ai += hat of spirit shield:Spirit
   function debug_print(str)
     if verbose then
       crawl.mpr("<cyan>" .. str .. "</cyan>")
+      crawl.flush_prev_message()	
     end
   end
 
@@ -437,6 +438,22 @@ ai += hat of spirit shield:Spirit
       return tostring(o)
     end
   end
+
+  local surrounding_coords = {}
+  surrounding_coords.y = {-1, -1}
+  surrounding_coords.k = { 0, -1}
+  surrounding_coords.u = { 1, -1}
+  surrounding_coords.h = {-1,  0}
+  surrounding_coords.l = { 1,  0}
+  surrounding_coords.b = {-1,  1}
+  surrounding_coords.j = { 0,  1}
+  surrounding_coords.n = { 1,  1}
+
+  local surrounding_tiles = {}
+  for k, v in pairs(surrounding_coords) do
+    table.insert(surrounding_tiles, {x=v[1],y=v[2]})
+  end
+
 
   -- == Imported A* algorithm for autoplay pathing (with l1quidcryst4l bugfixes) == --
   --
@@ -489,16 +506,15 @@ ai += hat of spirit shield:Spirit
     return dist ( nodeA.x, nodeA.y, nodeB.x, nodeB.y )
   end
 
-  function is_valid_node ( node, neighbor )
-
-    return true
+  function node_equal(node1, node2)
+    return node1.x == node2.x and node1.y == node2.y
   end
 
   function lowest_f_score ( set, f_score )
 
     local lowest, bestNode = INF, nil
     for _, node in ipairs ( set ) do
-      local score = f_score [ node ]
+      local score = f_score [ dump(node) ]
       if score < lowest then
         lowest, bestNode = score, node
       end
@@ -509,9 +525,10 @@ ai += hat of spirit shield:Spirit
   function neighbor_nodes ( theNode, nodes )
 
     local neighbors = {}
-    for _, node in ipairs ( nodes ) do
-      if theNode ~= node and is_valid_node ( theNode, node ) then
-        table.insert ( neighbors, node )
+    for k,v in pairs ( surrounding_coords ) do
+      neighbor = {x=theNode.x+v[1],y=theNode.y+v[2]}
+      if valid_node_func ( theNode, neighbor ) then
+        table.insert ( neighbors, neighbor )
       end
     end
     return neighbors
@@ -520,7 +537,7 @@ ai += hat of spirit shield:Spirit
   function not_in ( set, theNode )
 
     for _, node in ipairs ( set ) do
-      if node == theNode then return false end
+      if node_equal(node, theNode) then return false end
     end
     return true
   end
@@ -528,7 +545,7 @@ ai += hat of spirit shield:Spirit
   function remove_node ( set, theNode )
 
     for i, node in ipairs ( set ) do
-      if node == theNode then 
+      if node_equal(node, theNode) then 
         set [ i ] = set [ #set ]
         set [ #set ] = nil
         break
@@ -537,7 +554,7 @@ ai += hat of spirit shield:Spirit
   end
 
   function unwind_path ( flat_path, map, current_node, start )
-    if current_node.x == start.x and current_node.y == start.y then
+    if node_equal(current_node, start) then
       return flat_path
     end
 
@@ -551,17 +568,15 @@ ai += hat of spirit shield:Spirit
   -- pathfinding functions
   ----------------------------------------------------------------
 
-  function a_star ( start, goal, nodes, valid_node_func )
+  function a_star ( start, goal, nodes  )
 
     local closedset = {}
     local openset = { start }
     local came_from = {}
 
-    if valid_node_func then is_valid_node = valid_node_func end
-
     local g_score, f_score = {}, {}
-    g_score [ start ] = 0
-    f_score [ start ] = g_score [ start ] + heuristic_cost_estimate ( start, goal )
+    g_score [ dump(start) ] = 0
+    f_score [ dump(start) ] = g_score [ dump(start) ] + heuristic_cost_estimate ( start, goal )
 
     while #openset > 0 do
 
@@ -579,12 +594,12 @@ ai += hat of spirit shield:Spirit
       for _, neighbor in ipairs ( neighbors ) do 
         if not_in ( closedset, neighbor ) then
 
-          local tentative_g_score = g_score [ current ] + dist_between ( current, neighbor )
+          local tentative_g_score = g_score [ dump(current) ] + dist_between ( current, neighbor )
 
-          if not_in ( openset, neighbor ) or tentative_g_score < g_score [ neighbor ] then 
+          if not_in ( openset, neighbor ) or tentative_g_score < g_score [ dump(neighbor) ] then 
             came_from 	[ dump(neighbor) ] = current
-            g_score 	[ neighbor ] = tentative_g_score
-            f_score 	[ neighbor ] = g_score [ neighbor ] + heuristic_cost_estimate ( neighbor, goal )
+            g_score 	[ dump(neighbor) ] = tentative_g_score
+            f_score 	[ dump(neighbor) ] = g_score [ dump(neighbor) ] + heuristic_cost_estimate ( neighbor, goal )
             if not_in ( openset, neighbor ) then
               table.insert ( openset, neighbor )
             end
@@ -600,7 +615,7 @@ ai += hat of spirit shield:Spirit
   ----------------------------------------------------------------
 
   function clear_cached_paths ()
-
+    valid_crawl_feature_cache = {}
     cachedPaths = nil
   end
 
@@ -609,35 +624,52 @@ ai += hat of spirit shield:Spirit
     return dist ( x1, y1, x2, y2 )
   end
 
-  function path ( start, goal, nodes, ignore_cache, valid_node_func )
+  function path ( start, goal, nodes, ignore_cache  )
 
     if not cachedPaths then cachedPaths = {} end
-    if not cachedPaths [ start ] then
-      cachedPaths [ start ] = {}
-    elseif cachedPaths [ start ] [ goal ] and not ignore_cache then
-      return cachedPaths [ start ] [ goal ]
+    if not cachedPaths [ dump(start) ] then
+      cachedPaths [ dump(start) ] = {}
+    elseif cachedPaths [ dump(start) ] [ dump(goal) ] and not ignore_cache then
+      debug_print("Returning cached pathing!")
+      return cachedPaths [ dump(start) ] [ dump(goal) ]
     end
 
-    local resPath = a_star ( start, goal, nodes, valid_node_func )
-    if not cachedPaths [ start ] [ goal ] and not ignore_cache then
-      cachedPaths [ start ] [ goal ] = resPath
+    local resPath = a_star ( start, goal, nodes )
+    if not cachedPaths [ dump(start) ] [ dump(goal) ] and not ignore_cache then
+      cachedPaths [ dump(start) ] [ dump(goal) ] = resPath
     end
 
     return resPath
   end
 
   -- execute
-  -- this function determines which neighbors are valid (e.g., within range)
-  local valid_node_func = function ( node, neighbor ) 
 
-    local MAX_DIST = 1.5
+  valid_crawl_feature_cache = {}
+  function valid_crawl_feature(node)
+    valid_crawl_feature_cache[node.x] = valid_crawl_feature_cache.x or {}
 
-    local valid = not view.feature_at (neighbor.x, neighbor.y):find("wall") 
+    local cached = valid_crawl_feature_cache[node.x][node.y] 
+    if cached ~= nil then
+      debug_print("Using cached")
+      return cached
+    else
+      local feature =  view.feature_at (node.x, node.y)
+      debug_print("feature is: " .. feature)
+      local validity = not (travel.feature_solid(feature) or feature == "unseen")
 
-    -- helper function in the a-star module, returns distance between points
-    if valid and distance ( node.x, node.y, neighbor.x, neighbor.y ) < MAX_DIST then
-      return true
+      debug_print("feature validity: " .. tostring(validity))
+      valid_crawl_feature_cache[node.x][node.y] = validity
+      return validity
     end
+  end
+  -- this function determines which neighbors are valid (e.g., within range)
+  -- assumes you only pass it adjacenct tiles, just checks they're not out of bounds
+  function valid_node_func( node, neighbor ) 
+
+    if math.abs(neighbor.x) < 9 and math.abs(neighbor.y) < 9 then
+      return valid_crawl_feature(neighbor)
+    end
+
     return false
   end
 
@@ -648,22 +680,51 @@ ai += hat of spirit shield:Spirit
     return dleft < dright
   end
 
-  ordered_visible_tiles = {}
+  ordered_potentially_visible_tiles = {}
   for x=-8,8 do
     for y=-8,8 do
-      table.insert(ordered_visible_tiles, {x = x, y = y})
+      table.insert(ordered_potentially_visible_tiles, {x = x, y = y})
     end
   end
-  table.sort(ordered_visible_tiles, node_compare)
+  table.sort(ordered_potentially_visible_tiles, node_compare)
 
   local ignore = false -- dont ignore cached paths
   function path_to_player(goal)
-    player_path = path ( {x=0,y=0}, goal, ordered_visible_tiles, ignore, valid_node_func )
+    path_to({x=0,y=0}, goal)
+  end
+
+  -- @return list of tiles from adjacent to start at index 2 to goal
+  -- will return nil if start = goal
+  function path_to(start, goal)
+    -- start == goal returns nil via pathing anyway so just skip the math
+    if (start.x == goal.x) and (start.y == goal.y) then
+      return nil
+    end
+
+    local goal_feature = view.feature_at (goal.x, goal.y)
+    if goal_feature == "unseen" or travel.feature_solid (goal_feature) then
+      return nil
+    end
+
+    debug_print("Pathing goal " ..fmt_coords(goal.x, goal.y) .. "; start " .. fmt_coords(start.x, start.y))
+
+    player_path = path (start, goal, ordered_potentially_visible_tiles, ignore  )
     if player_path then
       player_path [1] = nil
     end
     return player_path
   end
+
+  -- @return the tile adjacent to start in path, nil if no path
+  function adj_tile_from_path(start, goal)
+    local path = path_to(start, goal)
+    if not path then
+      return nil
+    else
+      return path[2]
+    end
+  end
+
   -- end A* pathing
 
   -- From AnnounceDamage
@@ -764,6 +825,23 @@ ai += hat of spirit shield:Spirit
     return false
   end
 
+  -- @return true if the biggest threats are trivial or easy bats
+  -- helps ensure we don't waste time waiting, instead approaching gnats
+  function just_gnats()
+    local threat_level = get_monster_threat_level()
+    local monster_names = get_all_monster_names()
+
+    if threat_level < 1 and #monster_names < 3 then
+      return true
+    elseif get_monster_threat_level() < 2 then
+      if util.exists(monster_names, function(i) return i == "bat" end) then
+        return true
+      end
+    end
+
+    return false
+  end
+
   -- Encapsulates the logic for what action to take in safe situations so that
   -- top level caller can invoke this logic conditionally
   --
@@ -772,7 +850,7 @@ ai += hat of spirit shield:Spirit
     if you.feel_safe() then
       autoexplore()
       record_acted()
-    elseif monsters_too_threatening() and not in_relative_killhole() then
+    elseif monsters_too_threatening() and not in_any_killhole() then
       print_nearby_killhole(true)
       crawl.mpr("<lightred>MONSTERS ARE TOO THREATENING!</lightred> Retreat to a killhole or stairdance.")
     elseif items.fired_item() and not can_see_reach_or_threatening_ranged_monsters() then
@@ -780,7 +858,7 @@ ai += hat of spirit shield:Spirit
       hit_closest_nomove()
       record_acted()
     else
-      if not in_immediate_danger() and monster_will_enter_killhole() then
+      if not in_immediate_danger() and monster_will_enter_killhole() and not just_gnats() then
         wait()
         crawl.mpr("Waiting for monster approach.")
       else
@@ -821,14 +899,26 @@ ai += hat of spirit shield:Spirit
     monsters_in_view_memoized = nil
   end
 
+  function get_all_monster_names()
+    return util.map(function(monster) return monster:name() end, get_all_monsters())
+  end
+
   function monster_will_enter_killhole()
     ms = get_all_monsters()
+
+    local all_monsters_enter = true
     if ms then
       for _, m in ipairs(ms) do
-        mpath = path_to_player({x=m:x_pos(), y=m:y_pos()})
-        return mpath and in_absolute_killhole(mpath[2].x, mpath[2].y)
+        local m_adj_tile = adj_tile_from_path({x=0,y=0}, {x=m:x_pos(), y=m:y_pos()})
+        
+        -- If the monster can't path at all, we're 'safe' enough, so skip iter
+        if m_adj_tile and not in_any_killhole(m_adj_tile.x, m_adj_tile.y) then
+          return false
+        end
       end
     end
+
+    return true
   end
 
   function print_nearby_killhole(dont_print_message_if_not_found)
@@ -864,13 +954,17 @@ ai += hat of spirit shield:Spirit
       return nearby_killhole_memoized
     end
 
-    for _, tile in ipairs(ordered_visible_tiles) do
-      if in_absolute_killhole(tile.x, tile.y) then
-        nearby_killhole_memoized = tile
-        return tile
+    local nonsolid_terrain = nonsolid_terrain_in_view()
+    for _, terrain in ipairs(nonsolid_terrain) do
+      debug_print("Next killhole terrain loop")
+      if in_absolute_killhole(terrain.x, terrain.y) or in_relative_killhole(terrain.x, terrain.y) then
+      -- if in_absolute_killhole(terrain.x, terrain.y) then
+        nearby_killhole_memoized = terrain
+        return nearby_killhole_memoized
       end
     end
 
+    debug_print("No nearby killhole!")
     no_nearby_killhole = true
     return nil
   end
@@ -932,21 +1026,6 @@ ai += hat of spirit shield:Spirit
     return ranged_threat_count > 2
   end
 
-  local surrounding_coords = {}
-  surrounding_coords.y = {-1, -1}
-  surrounding_coords.k = { 0, -1}
-  surrounding_coords.u = { 1, -1}
-  surrounding_coords.h = {-1,  0}
-  surrounding_coords.l = { 1,  0}
-  surrounding_coords.b = {-1,  1}
-  surrounding_coords.j = { 0,  1}
-  surrounding_coords.n = { 1,  1}
-
-  local surrounding_tiles = {}
-  for k, v in pairs(surrounding_coords) do
-    table.insert(surrounding_tiles, {x=v[1],y=v[2]})
-  end
-
   function monster_adjacent()
     for k,v in pairs(surrounding_coords) do
       local m = monster.get_monster_at(v[1], v[2]) 
@@ -971,9 +1050,11 @@ ai += hat of spirit shield:Spirit
     end
 
     ordered_terrain_in_view = {}
-    for _, tile in ipairs(ordered_visible_tiles) do
+    for _, tile in ipairs(ordered_potentially_visible_tiles) do
       feature = view.feature_at(tile.x, tile.y)
-      table.insert(ordered_terrain_in_view, {feature=feature,x=tile.x,y=tile.y})
+      if feature ~= "unseen" then
+        table.insert(ordered_terrain_in_view, {feature=feature,x=tile.x,y=tile.y})
+      end
     end
 
     terrain_in_view_memoized = ordered_terrain_in_view
@@ -981,7 +1062,6 @@ ai += hat of spirit shield:Spirit
   end
 
   function reset_memoized_terrain_in_view()
-    debug_print("Resetting terrain memo")
     terrain_in_view_memoized = nil
   end
 
@@ -998,6 +1078,28 @@ ai += hat of spirit shield:Spirit
     return nil
   end
 
+  function nonsolid_terrain_in_view()
+    return util.filter(function(terrain) 
+      return not travel.feature_solid(terrain.feature)
+    end, terrain_in_view()) 
+  end
+
+  function in_any_killhole(tile_rel_to_player_x, tile_rel_to_player_y)
+    -- Defaults to checking if player in killhole
+    if tile_rel_to_player_x == nil then
+      tile_rel_to_player_x = 0
+      tile_rel_to_player_y = 0
+    end
+
+    if in_absolute_killhole(tile_rel_to_player_x, tile_rel_to_player_y) then
+      return true
+    elseif in_relative_killhole(tile_rel_to_player_x, tile_rel_to_player_y) then
+      return true
+    end
+
+    return false
+  end
+
   -- Player has max two open tiles around them (like a hallway)
   -- TODO Fix for out of view but remembered tiles (Crawl Lua doesn't expose?)
   function in_absolute_killhole(tile_rel_to_player_x, tile_rel_to_player_y)
@@ -1006,6 +1108,8 @@ ai += hat of spirit shield:Spirit
       tile_rel_to_player_x = 0
       tile_rel_to_player_y = 0
     end
+
+    debug_print("Checking abs killhole: " .. tile_rel_to_player_x .. " " .. tile_rel_to_player_y)
 
     local empty_spaces = 0
     for k,v in pairs(surrounding_coords) do
@@ -1016,14 +1120,13 @@ ai += hat of spirit shield:Spirit
       --             fmt_coords(tile_rel_to_player_x+x, tile_rel_to_player_y+y) ..
       --             " " .. feature)
       --
-      if not (feature and feature:find("wall")) then
-        -- Bug in lua library? "attempt to call field 'feature_is_solid' (a nil value)"
-        -- if travel.feature_is_solid(view.feature_at(x, y)) then
+      if not (feature and travel.feature_solid(feature)) then
         empty_spaces = empty_spaces + 1
       end
     end
 
     if empty_spaces < 3 then
+      debug_print("In absolute killhole")
       return true
     else
       return false
@@ -1031,58 +1134,89 @@ ai += hat of spirit shield:Spirit
   end
 
   function tile_in_tiles(tile, tiles)
+    debug_print("Finding tile in tiles")
     for _, array_tile in ipairs(tiles) do
       if array_tile.x == tile.x and array_tile.y == tile.y then
+        debug_print("Found tile in tiles")
         return true
       end
     end
     
+    debug_print("Did not find tile in tiles")
     return false
   end
 
   -- Ensures all monsters will path to a tile in which there are no open tiles
   -- both around it and around player, and therefore all visible monsters will
   -- approach single file, even if player has open tiles behind them
-  function in_relative_killhole()
-    monsters = get_all_monsters()
-    if not monsters or #monsters < 2 then
-      -- There's not a meaningful result, but if there's no monsters or only
-      -- one can approach you're as or more 'safe' than a killhole, mostly!
-      debug_print("Not enough monsters to check killhole")
-      return true
+  --
+  -- Returns false for farther adjacent from player because
+  -- it gets ridiculously inefficient to look outward from there. I could
+  -- refuse to call it with those args and technically that's more correct but
+  -- this is easier when we're calculating both abs and rel together often
+  function in_relative_killhole(tile_rel_to_player_x, tile_rel_to_player_y)
+    -- Defaults to checking if player in killhole
+    if tile_rel_to_player_x == nil then
+      tile_rel_to_player_x = 0
+      tile_rel_to_player_y = 0
+    elseif math.abs(tile_rel_to_player_x) > 1 or math.abs(tile_rel_to_player_y) > 1 then
+      return false
     end
 
-    adj_approach_x, adj_approach_y = nil, nil
+    debug_print("Checking rel killhole: " .. tile_rel_to_player_x .. " " .. tile_rel_to_player_y)
+
+    monsters = get_all_monsters()
+    if #monsters < 2 then
+      -- No such thing as a relative killhole against 0/1 monster, as all
+      -- pathing leads to single-file, but that doesn't actually mean you're
+      -- in a relative killhole if another monster comes up.
+      return false
+    end
+
+    local adj_approach_x, adj_approach_y = nil, nil
     for _, monster in ipairs(monsters) do
       -- Find the tile adjacent to player that the monster will take if going
       -- shortest path
-      adj_mpath = path_to_player({x=monster:x_pos(), y=monster:y_pos()})[2]
+      local adj_tile_in_path = adj_tile_from_path(
+        {x=tile_rel_to_player_x, y=tile_rel_to_player_y},
+        {x=monster:x_pos(), y=monster:y_pos()}
+      )
 
-      if not adj_approach_x then
-        adj_approach_x, adj_approach_y = adj_mpath.x, adj_mpath.y
-      else
-        -- If the monsters can approach at different tiles, you're not in a killhole
-        -- NOTE It's extra sensitive: they can't be on either side in a hallway
-        if adj_approach_x ~= adj_mpath.x or adj_approach_y ~= adj_mpath.y then
-          debug_print("Monsters approach in different places")
-          return false
+      if adj_tile_in_path then
+        -- If the monster has no path, we're 'safe' enough and can skip iter
+        if not adj_approach_x then
+          -- On first iteration, store where that monster is going
+          adj_approach_x, adj_approach_y = adj_tile_in_path.x, adj_tile_in_path.y
+        else
+          -- If the monsters can approach at different tiles, you're not in a killhole
+          -- NOTE It's extra sensitive: they can't be on either side in a hallway
+          if adj_approach_x ~= adj_tile_in_path.x or adj_approach_y ~= adj_tile_in_path.y then
+            debug_print("Monsters approach in different places")
+            return false
+          end
         end
+      else
+        debug_print("Monster has no path " .. monster:name())
       end
     end
 
+    local tiles_around_target_tile = util.map(function(tile)
+      return {x=tile.x+adj_approach_x,y=tile.y+adj_approach_y}
+    end, surrounding_tiles)
+
     -- The adjacent approach tile must not have open spaces also adjacent to
-    -- player (otherwise, this algor could miss non-shortest path approaches)
+    -- target tile (otherwise, this algo could miss non-shortest path approaches)
     empty_spaces_arround_adj_approach = {}
     for _, tile in ipairs(surrounding_tiles) do
       adj_to_adj_approach_tile = {x = adj_approach_x + tile.x, y = adj_approach_y + tile.y}
 
       -- Is this tile, which is adjacent to the adjacent approach tile, also 
-      -- adjacent to the player?
-      if tile_in_tiles(adj_to_adj_approach_tile, surrounding_tiles) then
+      -- adjacent to the target tile (usually player)?
+      if tile_in_tiles(adj_to_adj_approach_tile, tiles_around_target_tile) then
         local feature = view.feature_at(adj_to_adj_approach_tile.x, adj_to_adj_approach_tile.y)
         debug_print("Feature at adj_to_adj_approach_tile: " .. feature)
 
-        if not feature:find("wall") then
+        if not travel.feature_solid(feature) then
           -- Open space next to monster approach and player!
           return false
         end
@@ -1357,12 +1491,17 @@ ai += hat of spirit shield:Spirit
 
       if get_monster_threat_level() > 2 and #get_all_monsters() > 2 then
         debug_print("Monster threat high enough to look for killhole")
-        killhole = find_nearby_killhole()
-        if killhole and not killhole.x == 0 and killhole.y == 0 then
+        local killhole = find_nearby_killhole()
+
+        if killhole and not (killhole.x == 0 and killhole.y == 0) then
           killhole_loc_str = color_msg(fmt_coords(killhole.x, killhole.y), "yellow")
           print_suggestion("Use nearby killhole at " .. killhole_loc_str .. ".")
         else
-          debug_print("In killhole or none found")
+          if killhole and (killhole.x == 0 and killhole.y == 0) then
+            debug_print("In killhole already")
+          else
+            debug_print("No killhole found")
+          end
         end
       end
     end
@@ -1403,13 +1542,16 @@ ai += hat of spirit shield:Spirit
   end
 
   function reset_memoized_variables()
+    debug_print("Resetting memoized variables.")
     reset_memoized_monster_list()
     reset_memoized_terrain_in_view()
     reset_memoized_nearby_killhole()
+    clear_cached_paths()
   end
 
   function ready()
     reset_memoized_variables()
+    just_gnats()
 
     -- HDA functions
     AnnounceDamage()
@@ -1657,15 +1799,8 @@ ai += hat of spirit shield:Spirit
       end
     end
   end)
-}
 
-# Ask HilariousDeathArtist to fix things
-
-################
-# Mob Warnings #
-################
-
-{
+  -- == HDA Mobwarning == --
   --Returns a table where the key is the monster description and value is the total number of that mob in your vision
   function getMonsterList()
     local monsters = {}
