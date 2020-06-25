@@ -613,7 +613,7 @@ ai += hat of spirit shield:Spirit
   end
 
   function Square:str()
-    return "<x: " .. self.x .. ", " .. self.y ..">"
+    return "<x: " .. self.x .. ", y:" .. self.y ..">"
   end
 
   -- Distance math functions
@@ -631,9 +631,7 @@ ai += hat of spirit shield:Spirit
 
   -- Tile adjacency and validity
   function is_valid_tile(tile)
-    if math.abs(tile.x) < 9 and math.abs(tile.y) < 9 then
-      return valid_crawl_feature(tile)
-    end
+    return math.abs(tile.x) < 9 and math.abs(tile.y) < 9 and valid_crawl_feature(tile)
   end
 
   function get_neighbors(current)
@@ -654,31 +652,35 @@ ai += hat of spirit shield:Spirit
   end
 
   function clear_a_star_cache ()
-    valid_crawl_feature_cache = {}
+    crawl_feature_cache = {}
   end
 
-  valid_crawl_feature_cache = {}
-  function valid_crawl_feature(node)
-    valid_crawl_feature_cache[node.x] = valid_crawl_feature_cache.x or {}
-
-    local cached = valid_crawl_feature_cache[node.x][node.y] 
+  function get_feature(node)
+    crawl_feature_cache[node.x] = crawl_feature_cache[node.x] or {}
+    local cached = crawl_feature_cache[node.x][node.y]
     if cached ~= nil then
-      debug_log("Using cached")
+      debug_log("Using cached feature: " .. cached)
       return cached
     else
-      local feature =  view.feature_at (node.x, node.y)
-      debug_log("feature is: " .. feature)
-      local validity = not (travel.feature_solid(feature) or feature == "unseen")
-
-      -- If they're trapped behind "clear" there might be no path & infinite loop!
-      if feature:find("clear") then
-        return nil
-      end
-
-      debug_log("feature validity: " .. tostring(validity))
-      valid_crawl_feature_cache[node.x][node.y] = validity
-      return validity
+      local feature = view.feature_at(node.x, node.y)
+      crawl_feature_cache[node.x][node.y] = feature
+      debug_log("Feature is: " .. feature)
+      return feature
     end
+  end
+
+  crawl_feature_cache = {}
+  function valid_crawl_feature(node)
+    local feature = get_feature(node)
+    local validity = not (travel.feature_solid(feature) or feature == "unseen")
+
+    -- If they're trapped behind "clear" there might be no path & infinite loop!
+    if feature:find("clear") then
+      return nil
+    end
+
+    debug_log("feature validity: " .. tostring(validity))
+    return validity
   end
 
   -- A* pathing functions
