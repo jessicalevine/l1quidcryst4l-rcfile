@@ -1546,11 +1546,20 @@ ai += hat of spirit shield:Spirit
   end
 
   local force_mores_XL5 = false
+  local hell_branch_more_enabled = false
   function l1quidcryst4l_dynamic_force_mores()
     -- Don't care when we're grabbed early
     if you.xl() > 5 and not force_mores_XL5 then
       crawl.setopt("force_more_message += The.*grabs you[^r]")
       force_mores_XL5 = true
+    end
+    if util.exists({"Coc","Dis","Geh","Tar"}, function(b) return you.branch() == b end) then
+      crawl.setopt("force_more_message += Found a stone staircase leading down.")
+      hell_branch_more_enabled = true
+    else
+      if hell_branch_more_enabled == true then
+        crawl.setopt("force_more_message -= Found a stone staircase leading down.")
+      end
     end
   end
 
