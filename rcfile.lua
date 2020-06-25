@@ -1651,11 +1651,19 @@ ai += hat of spirit shield:Spirit
     end
   end
 
+  -- If we switch away, don't try to switch us back!
+  local equipped_whip_once = false
+  local equipped_plate_once = false
   function maybe_equip_early()
     if you.branch() == "D" and you.depth() < 5 and you.class() == "Fighter" then
-      try_autoequip("W", "plate armour")
-      if best_weapon_skill() == "Maces & Flails" then
+      if not equipped_plate_once then
+        try_autoequip("W", "plate")
+        equipped_plate_once = true
+      end
+
+      if best_weapon_skill() == "Maces & Flails" and not equipped_whip_once then
         try_autoequip("w", "whip")
+        equipped_whip_once = true
       end
     end
   end
