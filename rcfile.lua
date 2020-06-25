@@ -49,6 +49,8 @@ item_slot ^= enchant weapon:w
 
 item_slot ^= heal wounds:H
 
+# All but H, capital letter because e(V)oke is caps
+item_slot ^= wand:ABCDEFGIJKLMNOPQRSTUVWXYZ
 item_slot ^= lightning rod:L
 item_slot ^= paralysis:P
 item_slot ^= flame:F
