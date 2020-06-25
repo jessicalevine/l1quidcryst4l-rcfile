@@ -409,19 +409,41 @@ ai += hat of spirit shield:Spirit
 
 {
   -- Begin lua scripting --
-  local verbose = false
-  function debug_print(str)
-    if verbose then
-      crawl.mpr("<cyan>" .. str .. "</cyan>")
+  local debug_log_level = 0
+  local LOG_LEVELS = {}
+  LOG_LEVELS["ERROR"] = 4
+  LOG_LEVELS["WARN"] = 3
+  LOG_LEVELS["INFO"] = 2
+  LOG_LEVELS["DEBUG"] = 1
+  debug_log_level = LOG_LEVELS["WARN"]
+
+  function error_log(str)
+    log_print(str, LOG_LEVELS["ERROR"])
+  end
+
+  function warn_log(str)
+    log_print(str, LOG_LEVELS["WARN"])
+  end
+
+  function info_log(str)
+    log_print(str, LOG_LEVELS["INFO"])
+  end
+
+  function debug_log(str)
+    log_print(str, LOG_LEVELS["DEBUG"])
+  end
+
+  function log_print(str, logline_level)
+    logline_level = logline_level or 1
+    if logline_level >= debug_log_level then
+      crawl.mpr("<cyan>" .. tostring(str) .. "</cyan>")
       crawl.flush_prev_message()	
     end
   end
 
   -- Dumps table to string
   --
-  -- Useful for debugging but also used by my fixed version of RapidFire
-  -- Studio's A* implementation (I replaced table-keys with dumped table
-  -- keys because you can't effectively compare tables.)
+  -- Useful for debugging
   function dump(o)
     if type(o) == 'table' then
       local s = '{ '
@@ -454,215 +476,187 @@ ai += hat of spirit shield:Spirit
     table.insert(surrounding_tiles, {x=v[1],y=v[2]})
   end
 
+  --[[  Priority Queue implemented in lua, based on a binary heap.
+  Copyright (C) 2017 Lucas de Morais Siqueira <lucas.morais.siqueira@gmail.com>
+  License: zlib
+    This software is provided 'as-is', without any express or implied
+    warranty. In no event will the authors be held liable for any damages
+    arising from the use of this software.
+    Permission is granted to anyone to use this software for any purpose,
+    including commercial applications, and to alter it and redistribute it
+    freely, subject to the following restrictions:
+    1. The origin of this software must not be misrepresented; you must not
+      claim that you wrote the original software. If you use this software
+      in a product, an acknowledgement in the product documentation would be
+      appreciated but is not required.
+    2. Altered source versions must be plainly marked as such, and must not be
+      misrepresented as being the original software.
+    3. This notice may not be removed or altered from any source distribution.
+  ]]--
 
-  -- TODO Use 2D arrays not table keys cuz dump is sensitive to x/y reversal
-  -- == Imported A* algorithm for autoplay pathing (with l1quidcryst4l bugfixes) == --
-  --
-  -- Copyright (c) 2012 RapidFire Studio Limited 
-  -- All Rights Reserved. 
-  -- http://www.rapidfirestudio.com
+  local floor = math.floor
 
-  -- Permission is hereby granted, free of charge, to any person obtaining
-  -- a copy of this software and associated documentation files (the
-  -- "Software"), to deal in the Software without restriction, including
-  -- without limitation the rights to use, copy, modify, merge, publish,
-  -- distribute, sublicense, and/or sell copies of the Software, and to
-  -- permit persons to whom the Software is furnished to do so, subject to
-  -- the following conditions:
+  local PriorityQueue = {}
+  PriorityQueue.__index = PriorityQueue
 
-  -- The above copyright notice and this permission notice shall be
-  -- included in all copies or substantial portions of the Software.
+  setmetatable(PriorityQueue, {
+    __call = function (self)
+      setmetatable({}, self)
+      self:initialize()
+      return self
+    end
+  })
 
-  -- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-  -- EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-  -- MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-  -- IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-  -- CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-  -- TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-  -- SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-  ----------------------------------------------------------------
-  -- local variables
-  ----------------------------------------------------------------
-
-  local INF = 1/0
-  local cachedPaths = nil
-
-  ----------------------------------------------------------------
-  -- local functions
-  ----------------------------------------------------------------
-
-  function dist ( x1, y1, x2, y2 )
-
-    return math.sqrt ( math.pow ( x2 - x1, 2 ) + math.pow ( y2 - y1, 2 ) )
+  function PriorityQueue:initialize()
+    --[[  Initialization.
+    Example:
+    PriorityQueue = require("priority_queue")
+    pq = PriorityQueue()
+    ]]--
+    self.heap = {}
+    self.current_size = 0
   end
 
-  function dist_between ( nodeA, nodeB )
-
-    return dist ( nodeA.x, nodeA.y, nodeB.x, nodeB.y )
+  function PriorityQueue:empty()
+    return self.current_size == 0
   end
 
-  function heuristic_cost_estimate ( nodeA, nodeB )
-
-    return dist ( nodeA.x, nodeA.y, nodeB.x, nodeB.y )
+  function PriorityQueue:size()
+    return self.current_size
   end
 
-  function node_equal(node1, node2)
-    return node1.x == node2.x and node1.y == node2.y
+  function PriorityQueue:swim()
+    -- Swim up on the tree and fix the order heap property.
+    local heap = self.heap
+    local floor = floor
+    local i = self.current_size
+
+    while floor(i / 2) > 0 do
+      local half = floor(i / 2)
+      if heap[i][2] < heap[half][2] then
+        heap[i], heap[half] = heap[half], heap[i]
+      end
+      i = half
+    end
   end
 
-  function lowest_f_score ( set, f_score )
+  function PriorityQueue:put(v, p)
+    --[[ Put an item on the queue.
+    Args:
+    v: the item to be stored
+    p(number): the priority of the item
+    ]]--
+    --
 
-    local lowest, bestNode = INF, nil
-    for _, node in ipairs ( set ) do
-      local score = f_score [ dump(node) ]
-      if score < lowest then
-        lowest, bestNode = score, node
+    self.heap[self.current_size + 1] = {v, p}
+    self.current_size = self.current_size + 1
+    self:swim()
+  end
+
+  function PriorityQueue:sink()
+    -- Sink down on the tree and fix the order heap property.
+    local size = self.current_size
+    local heap = self.heap
+    local i = 1
+
+    while (i * 2) <= size do
+      local mc = self:min_child(i)
+      if heap[i][2] > heap[mc][2] then
+        heap[i], heap[mc] = heap[mc], heap[i]
+      end
+      i = mc
+    end
+  end
+
+  function PriorityQueue:min_child(i)
+    if (i * 2) + 1 > self.current_size then
+      return i * 2
+    else
+      if self.heap[i * 2][2] < self.heap[i * 2 + 1][2] then
+        return i * 2
+      else
+        return i * 2 + 1
       end
     end
-    return bestNode
   end
 
-  function neighbor_nodes ( theNode, nodes )
+  function PriorityQueue:pop()
+    -- Remove and return the top priority item
+    local heap = self.heap
+    local retval = heap[1][1]
+    heap[1] = heap[self.current_size]
+    heap[self.current_size] = nil
+    self.current_size = self.current_size - 1
+    self:sink()
+    return retval
+  end
+  -- == end Lucas de Morais Siqueira's PriorityQueue implementation == --
 
+  -- == A Star by Jess Levine/l1quidcryst4l == --
+  --
+  -- Performs A* Pathfinding assuming x, y grid with all +/-1 neighbors having
+  -- an equal cost of travel, calling is_valid_tile to check if the tile is
+  -- traversable and not out of bounds. Uses PriorityQueue above.
+
+  -- Prototype for representing a Square
+  local Square = {}
+  function Square:new(x, y)
+    t = {}
+    setmetatable(t, Square)
+    self.__index = self
+    t.x = x
+    t.y = y
+    return t
+  end
+
+  function Square:equals(tile)
+    return tile.x == self.x and tile.y == self.y
+  end
+
+  function Square:str()
+    return "<x: " .. self.x .. ", " .. self.y ..">"
+  end
+
+  -- Distance math functions
+  function manhattan_distance(start, goal)
+    return math.abs(start.x - goal.x) + math.abs(start.y - goal.y)
+  end
+
+  function heuristic(current, goal)
+    return dist(current, goal)
+  end
+
+  function dist(current, goal)
+    return math.sqrt(math.pow (goal.x - current.x, 2) + math.pow (goal.y - current.y, 2))
+  end
+
+  -- Tile adjacency and validity
+  function is_valid_tile(tile)
+    if math.abs(tile.x) < 9 and math.abs(tile.y) < 9 then
+      return valid_crawl_feature(tile)
+    end
+  end
+
+  function get_neighbors(current)
     local neighbors = {}
-    for k,v in pairs ( surrounding_coords ) do
-      neighbor = {x=theNode.x+v[1],y=theNode.y+v[2]}
+    for _, tile in ipairs (surrounding_tiles) do
+      neighbor = Square:new(current.x+tile.x, current.y+tile.y)
 
-      local validity = valid_node_func(theNode, neighbor)
+      local validity = is_valid_tile(neighbor)
       if validity == nil then
         return nil
       end
 
       if validity then
-        table.insert ( neighbors, neighbor )
+        table.insert(neighbors, neighbor)
       end
     end
     return neighbors
   end
 
-  function not_in ( set, theNode )
-
-    for _, node in ipairs ( set ) do
-      if node_equal(node, theNode) then return false end
-    end
-    return true
-  end
-
-  function remove_node ( set, theNode )
-
-    for i, node in ipairs ( set ) do
-      if node_equal(node, theNode) then 
-        set [ i ] = set [ #set ]
-        set [ #set ] = nil
-        break
-      end
-    end	
-  end
-
-  function unwind_path ( flat_path, map, current_node, start )
-    if node_equal(current_node, start) then
-      return flat_path
-    end
-
-    mapv = map[dump({x=current_node.x,y=current_node.y})] or map[dump({y=current_node.y,x=current_node.x})] 
-    if mapv then
-      table.insert ( flat_path, 1, mapv ) 
-      return unwind_path ( flat_path, map, mapv, start )
-    end
-  end
-
-  ----------------------------------------------------------------
-  -- pathfinding functions
-  ----------------------------------------------------------------
-
-  function a_star ( start, goal, nodes  )
-    local closedset = {}
-    local openset = { start }
-    local came_from = {}
-
-    local g_score, f_score = {}, {}
-    g_score [ dump(start) ] = 0
-    f_score [ dump(start) ] = g_score [ dump(start) ] + heuristic_cost_estimate ( start, goal )
-
-    local iter = 0
-    while #openset > 0 do
-      iter = iter + 1
-      if iter > 50 then
-        return nil
-      end
-
-      local current = lowest_f_score ( openset, f_score )
-      if current.x == goal.x and current.y == goal.y then
-        local path = unwind_path ( {}, came_from, goal, start )
-        debug_print(dump(came_from))
-        debug_print(fmt_coords(start.x,start.y) .. " " .. fmt_coords(goal.x,goal.y))
-        table.insert ( path, goal )
-        return path
-      end
-
-      remove_node ( openset, current )		
-      table.insert ( closedset, current )
-
-      local neighbors = neighbor_nodes ( current, nodes )
-      
-      -- Translucent walls mean infinite loop for pathing, maybe!
-      if neighbors ==nil then
-        return nil
-      end
-
-      for _, neighbor in ipairs ( neighbors ) do 
-        if not_in ( closedset, neighbor ) then
-
-          local tentative_g_score = g_score [ dump(current) ] + dist_between ( current, neighbor )
-
-          if not_in ( openset, neighbor ) or tentative_g_score < g_score [ dump(neighbor) ] then 
-            came_from 	[ dump(neighbor) ] = current
-            g_score 	[ dump(neighbor) ] = tentative_g_score
-            f_score 	[ dump(neighbor) ] = g_score [ dump(neighbor) ] + heuristic_cost_estimate ( neighbor, goal )
-            if not_in ( openset, neighbor ) then
-              table.insert ( openset, neighbor )
-            end
-          end
-        end
-      end
-    end
-    return nil -- no valid path
-  end
-
-  ----------------------------------------------------------------
-  -- exposed functions
-  ----------------------------------------------------------------
-
-  function clear_cached_paths ()
+  function clear_a_star_cache ()
     valid_crawl_feature_cache = {}
-    cachedPaths = nil
   end
-
-  function distance ( x1, y1, x2, y2 )
-
-    return dist ( x1, y1, x2, y2 )
-  end
-
-  function path ( start, goal, nodes, ignore_cache  )
-
-    if not cachedPaths then cachedPaths = {} end
-    if not cachedPaths [ dump(start) ] then
-      cachedPaths [ dump(start) ] = {}
-    elseif cachedPaths [ dump(start) ] [ dump(goal) ] and not ignore_cache then
-      debug_print("Returning cached pathing!")
-      return cachedPaths [ dump(start) ] [ dump(goal) ]
-    end
-
-    local resPath = a_star ( start, goal, nodes )
-    if not cachedPaths [ dump(start) ] [ dump(goal) ] and not ignore_cache then
-      cachedPaths [ dump(start) ] [ dump(goal) ] = resPath
-    end
-
-    return resPath
-  end
-
-  -- execute
 
   valid_crawl_feature_cache = {}
   function valid_crawl_feature(node)
@@ -670,11 +664,11 @@ ai += hat of spirit shield:Spirit
 
     local cached = valid_crawl_feature_cache[node.x][node.y] 
     if cached ~= nil then
-      debug_print("Using cached")
+      debug_log("Using cached")
       return cached
     else
       local feature =  view.feature_at (node.x, node.y)
-      debug_print("feature is: " .. feature)
+      debug_log("feature is: " .. feature)
       local validity = not (travel.feature_solid(feature) or feature == "unseen")
 
       -- If they're trapped behind "clear" there might be no path & infinite loop!
@@ -682,53 +676,92 @@ ai += hat of spirit shield:Spirit
         return nil
       end
 
-      debug_print("feature validity: " .. tostring(validity))
+      debug_log("feature validity: " .. tostring(validity))
       valid_crawl_feature_cache[node.x][node.y] = validity
       return validity
     end
   end
-  -- this function determines which neighbors are valid (e.g., within range)
-  -- assumes you only pass it adjacenct tiles, just checks they're not out of bounds
-  function valid_node_func( node, neighbor ) 
 
-    if math.abs(neighbor.x) < 9 and math.abs(neighbor.y) < 9 then
-      return valid_crawl_feature(neighbor)
+  -- A* pathing functions
+  function reconstruct_path(came_from, current, start, final_path)
+    if current:equals(start) then
+      return {start}
     end
 
-    return false
-  end
+    local came_from_x = came_from[current.x]
+    if not came_from_x then
+      return nil
+    end
 
-
-  function node_compare(left, right)
-    dleft = distance (0, 0, left.x, left.y) 
-    dright = distance (0, 0, right.x, right.y)
-    return dleft < dright
-  end
-
-  ordered_potentially_visible_tiles = {}
-  for x=-8,8 do
-    for y=-8,8 do
-      table.insert(ordered_potentially_visible_tiles, {x = x, y = y})
+    local came_from_tile = came_from[current.x][current.y]
+    if came_from_tile then
+      local path = reconstruct_path(came_from, came_from_tile, start, final_path)
+      table.insert(path, current)
+      return path 
+    else
+      return nil
     end
   end
-  table.sort(ordered_potentially_visible_tiles, node_compare)
 
-  local ignore = false -- dont ignore cached paths
-  function path_to_player(goal)
-    path_to({x=0,y=0}, goal)
+  function a_star(start, goal)
+    local open_set = PriorityQueue()
+    local start_heuristic = heuristic(start, goal)
+    open_set:put(start, heuristic(start, goal))
+
+    local came_from = {}
+    local g_score = {}
+    local f_score = {}
+    g_score[start.x] = {}
+    f_score[start.x] = {}
+
+    g_score[start.x][start.y] = 0
+    f_score[start.x][start.y] = start_heuristic
+
+    local current = nil
+    while not open_set:empty() do
+      current = open_set:pop()
+
+      if current:equals(goal) then
+        return reconstruct_path(came_from, goal, start, {goal})
+      end
+
+      local neighbors = get_neighbors(current)
+      if neighbors == nil then
+        -- nil neighbors signifies we found something invalid that might create
+        -- an impossible path and should just stop trying
+        info_log("Found something we don't think we can path at: " .. current:str())
+        return nil
+      end
+
+      local tentative_g_score, tentative_f_score, neighbor_g_score =  nil, nil, nil
+      for _, neighbor in ipairs(neighbors) do
+        g_score[current.x] = g_score[current.x] or {}
+        g_score[neighbor.x] = g_score[neighbor.x] or {}
+
+        neighbor_g_score = g_score[neighbor.x][neighbor.y]
+
+        tentative_g_score = g_score[current.x][current.y] + 1
+        debug_log("tent " .. tentative_g_score)
+        if not neighbor_g_score or tentative_g_score < neighbor_g_score then
+          came_from[neighbor.x] = came_from[neighbor.x] or {}
+          came_from[neighbor.x][neighbor.y] = current
+          g_score[neighbor.x][neighbor.y] = tentative_g_score
+
+          debug_log("n " .. neighbor:str())
+          debug_log("g " .. goal:str())
+          debug_log("heur " .. heuristic(neighbor, goal))
+          tentative_f_score = tentative_g_score + heuristic(neighbor, goal)
+          f_score[neighbor.x] = f_score[neighbor.x] or {}
+          f_score[neighbor.x][neighbor.y] = tentative_f_score
+          open_set:put(neighbor, tentative_f_score)
+        end
+      end
+    end
+
+    return nil
   end
 
-  function path_from_player(goal)
-    path_to(goal, {x=0,y=0})
-  end
-
-  function Tile(x, y)
-    return {x=x,y=y}
-  end
-
-  function manhattan_distance(start, goal)
-    return math.abs(start.x - goal.x) + math.abs(start.y - goal.y)
-  end
+  -- Functions for crawl pathing
 
   -- @return list of tiles from adjacent to start at index 2 to goal
   -- will return nil if start = goal
@@ -738,22 +771,16 @@ ai += hat of spirit shield:Spirit
       return nil
     end
 
-    -- Just don't do long pathing, it lags too much. Assume you can't path.
-    -- TODO This is inelegant and yields false negative for
-    -- monster_will_enter_killhole for long distances and we need to figure
-    -- out a way to fix that
-    if manhattan_distance(start, goal) > 5 then
-      return nil
-    end
-
     local goal_feature = view.feature_at (goal.x, goal.y)
     if goal_feature == "unseen" or travel.feature_solid (goal_feature) then
       return nil
     end
 
-    debug_print("Pathing goal " ..fmt_coords(goal.x, goal.y) .. "; start " .. fmt_coords(start.x, start.y))
+    info_log("Pathing from goal " .. fmt_coords(goal.x, goal.y) .. " to start " .. fmt_coords(start.x, start.y))
 
-    return path (start, goal, ordered_potentially_visible_tiles, ignore  )
+    local a_star_res = a_star(Square:new(start.x, start.y), Square:new(goal.x, goal.y))
+    debug_log(dump(a_star_res))
+    return a_star_res
   end
 
   -- @return the tile adjacent to start in path, nil if no path
@@ -766,7 +793,33 @@ ai += hat of spirit shield:Spirit
     end
   end
 
-  -- end A* pathing
+  function path_to_player(goal)
+    path_to({x=0,y=0}, goal)
+  end
+
+  function path_from_player(goal)
+    path_to(goal, {x=0,y=0})
+  end
+  -- == end A* Pathfinding implementation == --
+
+  function Tile(x, y)
+    return {x=x,y=y}
+  end
+
+  function node_compare(left, right)
+    dleft = dist(Square:new(0, 0), left) 
+    dright = dist(Square:new(0, 0), right)
+    return dleft < dright
+  end
+
+  ordered_potentially_visible_tiles = {}
+  for x=-8,8 do
+    for y=-8,8 do
+      table.insert(ordered_potentially_visible_tiles, {x = x, y = y})
+    end
+  end
+  table.sort(ordered_potentially_visible_tiles, node_compare)
+
 
   -- From AnnounceDamage
   -- (some also in use by autoplay)
@@ -947,18 +1000,6 @@ ai += hat of spirit shield:Spirit
   function monster_will_enter_killhole()
     ms = get_all_monsters()
 
-    -- TODO Yields false negatives in order to prevent lag due to inefficient
-    -- pathing, could use improvement
-    local total_distance = 0
-    if ms then
-      for _, m in ipairs(ms) do
-         total_distance = total_distance + manhattan_distance(Tile(0,0), Tile(m:x_pos(), m:y_pos()))
-      end
-    end
-    if total_distance > 14 or #ms > 4 then
-      return false
-    end
-
     local all_monsters_enter = true
     if ms then
       for _, m in ipairs(ms) do
@@ -966,9 +1007,6 @@ ai += hat of spirit shield:Spirit
         
         -- 
         if m_adj_tile and not in_any_killhole(m_adj_tile.x, m_adj_tile.y) then
-          return false
-        elseif not m_adj_tile then
-          -- TODO Yields false negatives with path_to distance issues but necessary for now
           return false
         end
       end
@@ -1012,7 +1050,7 @@ ai += hat of spirit shield:Spirit
 
     local nonsolid_terrain = nonsolid_terrain_in_view()
     for _, terrain in ipairs(nonsolid_terrain) do
-      debug_print("Next killhole terrain loop")
+      debug_log("Next killhole terrain loop")
       if in_absolute_killhole(terrain.x, terrain.y) or in_relative_killhole(terrain.x, terrain.y) then
       -- if in_absolute_killhole(terrain.x, terrain.y) then
         nearby_killhole_memoized = terrain
@@ -1020,7 +1058,7 @@ ai += hat of spirit shield:Spirit
       end
     end
 
-    debug_print("No nearby killhole!")
+    info_log("No nearby killhole found!")
     no_nearby_killhole = true
     return nil
   end
@@ -1125,12 +1163,12 @@ ai += hat of spirit shield:Spirit
   function find_terrain_feature_in_view(feature)
     for _, terrain_table in ipairs(terrain_in_view()) do
       if terrain_table.feature:find(feature) then
-        debug_print("Found terrain: " .. feature)
+        debug_log("Found desired terrain: " .. feature)
         return terrain_table
       end
     end
 
-    debug_print("Did not find terrain: " .. feature)
+    debug_log("Did not find desired terrain: " .. feature)
     return nil
   end
 
@@ -1165,14 +1203,14 @@ ai += hat of spirit shield:Spirit
       tile_rel_to_player_y = 0
     end
 
-    debug_print("Checking abs killhole: " .. tile_rel_to_player_x .. " " .. tile_rel_to_player_y)
+    info_log("Checking abs killhole: " .. tile_rel_to_player_x .. ", " .. tile_rel_to_player_y)
 
     local empty_spaces = 0
     for k,v in pairs(surrounding_coords) do
       x, y = v[1], v[2]
       local feature = view.feature_at(tile_rel_to_player_x+x, tile_rel_to_player_y+y)
 
-      -- debug_print("feature at: " ..
+      -- debug_log("feature at: " ..
       --             fmt_coords(tile_rel_to_player_x+x, tile_rel_to_player_y+y) ..
       --             " " .. feature)
       --
@@ -1182,7 +1220,7 @@ ai += hat of spirit shield:Spirit
     end
 
     if empty_spaces < 3 then
-      debug_print("In absolute killhole")
+      info_log("Is absolute killhole: " .. tile_rel_to_player_x .. ", " .. tile_rel_to_player_y)
       return true
     else
       return false
@@ -1190,15 +1228,12 @@ ai += hat of spirit shield:Spirit
   end
 
   function tile_in_tiles(tile, tiles)
-    debug_print("Finding tile in tiles")
     for _, array_tile in ipairs(tiles) do
       if array_tile.x == tile.x and array_tile.y == tile.y then
-        debug_print("Found tile in tiles")
         return true
       end
     end
     
-    debug_print("Did not find tile in tiles")
     return false
   end
 
@@ -1215,14 +1250,21 @@ ai += hat of spirit shield:Spirit
     if tile_rel_to_player_x == nil then
       tile_rel_to_player_x = 0
       tile_rel_to_player_y = 0
-    elseif math.abs(tile_rel_to_player_x) > 1 or math.abs(tile_rel_to_player_y) > 1 then
+    elseif math.abs(tile_rel_to_player_x) + math.abs(tile_rel_to_player_y) > 2 then
+      -- We don't path efficiently enough to path relatively at long distances
+      -- repeatedly. It's fine to do it once, so ideally we should limit this
+      -- at a higher level and make sure we just don't iterate over long 
+      -- distance checks, but it's easiest to do it here for now
+      --
+      -- TODO Improve efficiency or stop calling in_relative_killhole
+      -- repeatedly with long paths
       return false
     end
 
-    debug_print("Checking rel killhole: " .. tile_rel_to_player_x .. " " .. tile_rel_to_player_y)
+    info_log("Checking rel killhole: " .. tile_rel_to_player_x .. ", " .. tile_rel_to_player_y)
 
     monsters = get_all_monsters()
-    if #monsters < 2 or #monsters > 6 then
+    if #monsters < 2 then
       -- No such thing as a relative killhole against 0/1 monster, as all
       -- pathing leads to single-file, but that doesn't actually mean you're
       -- in a relative killhole if another monster comes up.
@@ -1247,18 +1289,17 @@ ai += hat of spirit shield:Spirit
           -- If the monsters can approach at different tiles, you're not in a killhole
           -- NOTE It's extra sensitive: they can't be on either side in a hallway
           if adj_approach_x ~= adj_tile_in_path.x or adj_approach_y ~= adj_tile_in_path.y then
-            debug_print("Monsters approach in different places")
+            info_log("Monsters approach in different places")
             return false
           end
         end
       else
-        debug_print("Monster has no path " .. monster:name())
+        info_log("Monster has no path " .. monster:name())
       end
     end
 
     if not adj_approach_x then
-      -- Couldn't path monster, probably due to false negative path_to issue
-      -- so just assume we're not in a killhole for safety. TODO improve.
+      -- Couldn't path to any monster
       return false
     end
 
@@ -1276,7 +1317,7 @@ ai += hat of spirit shield:Spirit
       -- adjacent to the target tile (usually player)?
       if tile_in_tiles(adj_to_adj_approach_tile, tiles_around_target_tile) then
         local feature = view.feature_at(adj_to_adj_approach_tile.x, adj_to_adj_approach_tile.y)
-        debug_print("Feature at adj_to_adj_approach_tile: " .. feature)
+        debug_log("Feature at adj_to_adj_approach_tile: " .. feature)
 
         if not travel.feature_solid(feature) then
           -- Open space next to monster approach and player!
@@ -1350,7 +1391,7 @@ ai += hat of spirit shield:Spirit
       total_threat = total_threat + m:threat()
     end
 
-    debug_print("Monster threat: " .. total_threat)
+    info_log("Monster threat: " .. total_threat)
     return total_threat
   end
 
@@ -1540,13 +1581,24 @@ ai += hat of spirit shield:Spirit
     return "<" .. color .. ">" .. msg .. "</" .. color .. ">"
   end
 
+  -- NOTE Depends on escape func from HDA mobwarnings
+  function is_message_sent_recently(str, how_recent)
+    string.find(crawl.messages(how_recent), escape(str))
+  end
+
   function print_suggestion(suggestion_str)
-    crawl.mpr("<yellow>SUGGESTION:</yellow> " .. suggestion_str)
+    local formatted_str = "<yellow>SUGGESTION:</yellow> " .. suggestion_str
+    if not is_message_sent_recently(formatted_str, 12) then
+      crawl.mpr(formatted_str)
+    end
   end
 
   function movement_strategy_reminders()
-    if get_monster_threat_level() > 1 or #get_all_monsters() > 7 then
-      debug_print("Monster threat high enough to look for terrain")
+    local threat = get_monster_threat_level()
+    local monsters = get_all_monsters()
+
+    if (threat > 1 and #monsters > 2) or #get_all_monsters() > 6 then
+      info_log("Monster threat high enough to look for terrain")
 
       local terrain_table = find_terrain_feature_in_view("stairs_up") 
       if terrain_table then
@@ -1554,8 +1606,8 @@ ai += hat of spirit shield:Spirit
         print_suggestion("Why not stairdance?! Stairs at " .. stair_loc_str .. ".")
       end
 
-      if get_monster_threat_level() > 2 and #get_all_monsters() > 2 then
-        debug_print("Monster threat high enough to look for killhole")
+      if threat > 2 and #monsters > 2 then
+        info_log("Monster threat high enough to look for killhole")
         local killhole = find_nearby_killhole()
 
         if killhole and not (killhole.x == 0 and killhole.y == 0) then
@@ -1563,9 +1615,9 @@ ai += hat of spirit shield:Spirit
           print_suggestion("Use nearby killhole at " .. killhole_loc_str .. ".")
         else
           if killhole and (killhole.x == 0 and killhole.y == 0) then
-            debug_print("In killhole already")
+            info_log("In killhole already")
           else
-            debug_print("No killhole found")
+            debug_log("No killhole found")
           end
         end
       end
@@ -1607,14 +1659,15 @@ ai += hat of spirit shield:Spirit
   end
 
   function reset_memoized_variables()
-    debug_print("Resetting memoized variables.")
+    debug_log("Resetting memoized variables.")
     reset_memoized_monster_list()
     reset_memoized_terrain_in_view()
     reset_memoized_nearby_killhole()
-    clear_cached_paths()
+    clear_a_star_cache()
   end
 
   function ready()
+    monster_will_enter_killhole()
     reset_memoized_variables()
     just_gnats()
 
