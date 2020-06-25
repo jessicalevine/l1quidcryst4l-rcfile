@@ -92,8 +92,7 @@ macros += M \{223} \{6}artefact\{32}||\{32}ego\{32}||\{32}whip\{32}||\{32}plate\
 macros += M \{169} \{6}altar\{13}
 macros += M p ===autoplay
 macros += M - ===print_nearby_killhole
-# macros += M _ ===walk_one_step_to_killhole
-# a* needs fixing first
+macros += M _ ===walk_one_step_to_killhole
 
 ### BORROWED ###
 
@@ -415,7 +414,7 @@ ai += hat of spirit shield:Spirit
   LOG_LEVELS["WARN"] = 3
   LOG_LEVELS["INFO"] = 2
   LOG_LEVELS["DEBUG"] = 1
-  debug_log_level = LOG_LEVELS["WARN"]
+  debug_log_level = LOG_LEVELS["DEBUG"]
 
   function error_log(str)
     log_print(str, LOG_LEVELS["ERROR"])
@@ -794,11 +793,11 @@ ai += hat of spirit shield:Spirit
   end
 
   function path_to_player(goal)
-    path_to({x=0,y=0}, goal)
+    return path_to({x=0,y=0}, goal)
   end
 
   function path_from_player(goal)
-    path_to(goal, {x=0,y=0})
+    return path_to(goal, {x=0,y=0})
   end
   -- == end A* Pathfinding implementation == --
 
@@ -1028,8 +1027,9 @@ ai += hat of spirit shield:Spirit
 
   function path_to_nearby_killhole()
     nearby_killhole = find_nearby_killhole()
+
     if nearby_killhole then
-      return path_from_player(nearby_killhole)
+      return path_to_player(nearby_killhole)
     else
       return nil
     end
@@ -1336,8 +1336,10 @@ ai += hat of spirit shield:Spirit
     end
 
     nearby_killhole = find_nearby_killhole()
+    debug_log("nearby_killhole in walk killholle: " .. tostring(nearby_killhole))
     if nearby_killhole then
       local path_to = path_to_nearby_killhole()
+      debug_log("path_to in walk killholle: " .. tostring(path_to))
       if path_to then
         walk_one_step_to_tile(path_to[2])
         return
