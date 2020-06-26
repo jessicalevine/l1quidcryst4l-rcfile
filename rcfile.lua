@@ -95,6 +95,7 @@ macros += M \{169} \{6}altar\{13}
 macros += M p ===autoplay
 macros += M - ===print_nearby_killhole
 macros += M _ ===walk_one_step_to_killhole
+macros += M & ===toggle_expensive_calc
 
 ### BORROWED ###
 
@@ -440,6 +441,13 @@ ai += hat of spirit shield:Spirit
       crawl.mpr("<cyan>" .. tostring(str) .. "</cyan>")
       crawl.flush_prev_message()	
     end
+  end
+
+  local expensive_calc_on = true
+  function toggle_expensive_calc()
+    crawl.mpr("Expensive calculations were: " .. tostring(expensive_calc_on))
+    expensive_calc_on = not expensive_calc_on
+    crawl.mpr("Expensive calculations is now: " .. tostring(expensive_calc_on))
   end
 
   -- Dumps table to string
@@ -799,6 +807,9 @@ ai += hat of spirit shield:Spirit
   -- @return list of tiles from adjacent to start at index 2 to goal
   -- will return nil if start = goal
   function path_to(start, goal)
+    if not expensive_calc_on then
+      return nil
+    end
     -- start == goal returns nil via pathing anyway so just skip the math
     if (start.x == goal.x) and (start.y == goal.y) then
       return nil
@@ -1179,6 +1190,11 @@ ai += hat of spirit shield:Spirit
   function find_nearby_killhole()
     if nearby_killhole_memoized or no_nearby_killhole then
       return nearby_killhole_memoized
+    end
+
+    if not expensive_calc_on then
+      debug_log("Expensive calculations off. Not finding killhole.")
+      return nil
     end
 
     local nonsolid_terrain = nonsolid_terrain_in_view()
