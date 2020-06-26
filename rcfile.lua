@@ -615,26 +615,33 @@ ai += hat of spirit shield:Spirit
   end
 
   function Square:str()
-    local loc = "<x: " .. self.x .. ", y:" .. self.y ..">"
-    if self.feature then
-      return loc .. self.feature
+    local cached_feature = self:get_cached_feature()
+    if cached_feature then
+      return "<x: " .. self.x .. ", y:" .. self.y .." - " .. cached_feature .. ">"
     else
-      return loc
+      return "<x: " .. self.x .. ", y:" .. self.y .. ">"
     end
   end
 
+  crawl_feature_cache = {}
   function Square:get_feature()
-    crawl_feature_cache[self.x] = crawl_feature_cache[self.x] or {}
-    local cached = crawl_feature_cache[self.x][self.y]
+    local cached = self:get_cached_feature()
     if cached ~= nil then
       debug_log("Using cached feature: " .. cached)
       return cached
     else
+      crawl_feature_cache[self.x] = crawl_feature_cache[self.x] or {}
       local feature = view.feature_at(self.x, self.y)
       crawl_feature_cache[self.x][self.y] = feature
+      self.feature = feature
       debug_log("Feature is: " .. feature)
       return feature
     end
+  end
+
+  function Square:get_cached_feature()
+    crawl_feature_cache[self.x] = crawl_feature_cache[self.x] or {}
+    return crawl_feature_cache[self.x][self.y]
   end
 
   -- Distance math functions
@@ -684,15 +691,16 @@ ai += hat of spirit shield:Spirit
 
   function clear_a_star_cache ()
     crawl_feature_cache = {}
+    cannot_path_cache = {}
   end
 
-  crawl_feature_cache = {}
   function valid_crawl_feature(tile)
     local feature = tile:get_feature()
     local validity = not (travel.feature_solid(feature) or feature == "unseen")
 
     -- If they're trapped behind "clear" there might be no path & infinite loop!
     if feature:find("clear") then
+      info_log("Uh oh, found clear feature at: " .. tile:str())
       return nil
     end
 
@@ -722,6 +730,12 @@ ai += hat of spirit shield:Spirit
   end
 
   function a_star(start, goal)
+    -- If we already found we cannot path from this goal, don't try again
+    -- Probably due to a clear tile
+    if get_cannot_path_from_cache(goal) then
+      return nil
+    end
+
     local open_set = PriorityQueue()
     local start_heuristic = heuristic(start, goal)
     open_set:put(start, heuristic(start, goal))
@@ -748,6 +762,7 @@ ai += hat of spirit shield:Spirit
         -- nil neighbors signifies we found something invalid that might create
         -- an impossible path and should just stop trying
         info_log("Found something we don't think we can path at: " .. current:str())
+        set_cannot_path_in_cache(goal)
         return nil
       end
 
@@ -799,6 +814,27 @@ ai += hat of spirit shield:Spirit
     local a_star_res = a_star(Square:new(start.x, start.y), Square:new(goal.x, goal.y))
     debug_log(dump(a_star_res))
     return a_star_res
+  end
+
+  cannot_path_cache = {}
+  function get_cannot_path_from_cache(tile)
+    cannot_path_cache[tile.x] = cannot_path_cache[tile.x] or {}
+    local cached = cannot_path_cache[tile.x][tile.y]
+    if cached then
+      debug_log("Cache says cannot path from: " .. tile:str())
+      return cached
+    else
+      return false
+    end
+  end
+
+  -- Technically, this only indicates we can't path from a particular start
+  -- but the probability is that if there's glass in the way, we can't path
+  -- to anywhere we would want to anyway, and it's too inefficient to try
+  function set_cannot_path_in_cache(tile)
+    cannot_path_cache[tile.x] = cannot_path_cache[tile.x] or {}
+    info_log("Marking in cache that we cannot path from: " .. tile:str())
+    cannot_path_cache[tile.x][tile.y] = true
   end
 
   -- @return the tile adjacent to start in path, nil if no path
@@ -1295,6 +1331,17 @@ ai += hat of spirit shield:Spirit
     end
 
     local target_tile = Square:new(tile_rel_to_player_x, tile_rel_to_player_y)
+
+    -- To prevent pathing lag
+    --local total_distance = 0
+    --for _, monster in ipairs(monsters) do
+    --  total_distance = total_distance + manhattan_distance(target_tile, Square:new(monster:x_pos(), monster:y_pos()))
+    --end
+
+   -- if total_distance > 30 then
+    --  return false
+    --end
+
 
     local adj_approach_x, adj_approach_y = nil, nil
     for _, monster in ipairs(monsters) do
