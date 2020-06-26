@@ -1246,7 +1246,7 @@ ai += hat of spirit shield:Spirit
       --             fmt_coords(tile_rel_to_player_x+x, tile_rel_to_player_y+y) ..
       --             " " .. feature)
       --
-      if feature and not (travel.feature_solid(feature) or feature == "unseen") then
+      if feature and (feature == "unseen" or not (travel.feature_solid(feature))) then
         empty_spaces = empty_spaces + 1
       end
     end
