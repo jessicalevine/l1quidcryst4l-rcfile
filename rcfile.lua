@@ -1705,8 +1705,9 @@ ai += hat of spirit shield:Spirit
     end
   end
 
+  tried_equip_once = {}
   function try_autoequip(equip_letter, item_name)
-    if you.feel_safe() then
+    if not tried_equip_once[item_name] and you.feel_safe() then
       item = find_in_inventory(item_name)
 
       if not item or item.equipped then
@@ -1717,23 +1718,21 @@ ai += hat of spirit shield:Spirit
 
       crawl.mpr("Autoequipping " .. item_terse_name)
       crawl.sendkeys(equip_letter .. items.index_to_letter(item.slot))
+
+      -- If we switch away, don't try to switch us back!
+      tried_equip_once[item_name] = true
       -- crawl.mpr("Tried to equip item you don't have: " .. item_terse_name)
     else
       -- crawl.mpr("Can't equip " .. item_terse_name .. "because it's not safe. Do it yourself")
     end
   end
 
-  -- If we switch away, don't try to switch us back!
-  local equipped_whip_once = false
-  local equipped_plate_once = false
   function maybe_equip_early()
     if you.branch() == "D" and you.depth() < 5 and you.class() == "Fighter" then
-      if not equipped_plate_once then
-        try_autoequip("W", "plate")
-        equipped_plate_once = true
-      end
+      try_autoequip("W", "plate")
+      equipped_plate_once = true
 
-      if best_weapon_skill() == "Maces & Flails" and not equipped_whip_once then
+      if best_weapon_skill() == "Maces & Flails" then
         try_autoequip("w", "whip")
         equipped_whip_once = true
       end
