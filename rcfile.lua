@@ -615,7 +615,26 @@ ai += hat of spirit shield:Spirit
   end
 
   function Square:str()
-    return "<x: " .. self.x .. ", y:" .. self.y ..">"
+    local loc = "<x: " .. self.x .. ", y:" .. self.y ..">"
+    if self.feature then
+      return loc .. self.feature
+    else
+      return loc
+    end
+  end
+
+  function Square:get_feature()
+    crawl_feature_cache[self.x] = crawl_feature_cache[self.x] or {}
+    local cached = crawl_feature_cache[self.x][self.y]
+    if cached ~= nil then
+      debug_log("Using cached feature: " .. cached)
+      return cached
+    else
+      local feature = view.feature_at(self.x, self.y)
+      crawl_feature_cache[self.x][self.y] = feature
+      debug_log("Feature is: " .. feature)
+      return feature
+    end
   end
 
   -- Distance math functions
@@ -640,6 +659,16 @@ ai += hat of spirit shield:Spirit
     local neighbors = {}
     for _, tile in ipairs (surrounding_tiles) do
       neighbor = Square:new(current.x+tile.x, current.y+tile.y)
+      table.insert(neighbors, neighbor)
+    end
+    return neighbors
+  end
+
+  -- Duplicates some get_neighbors logic to avoid looping twice
+  function get_unsolid_known_neighbors(current)
+    local neighbors = {}
+    for _, tile in ipairs (surrounding_tiles) do
+      neighbor = Square:new(current.x+tile.x, current.y+tile.y)
 
       local validity = is_valid_tile(neighbor)
       if validity == nil then
@@ -657,23 +686,9 @@ ai += hat of spirit shield:Spirit
     crawl_feature_cache = {}
   end
 
-  function get_feature(node)
-    crawl_feature_cache[node.x] = crawl_feature_cache[node.x] or {}
-    local cached = crawl_feature_cache[node.x][node.y]
-    if cached ~= nil then
-      debug_log("Using cached feature: " .. cached)
-      return cached
-    else
-      local feature = view.feature_at(node.x, node.y)
-      crawl_feature_cache[node.x][node.y] = feature
-      debug_log("Feature is: " .. feature)
-      return feature
-    end
-  end
-
   crawl_feature_cache = {}
-  function valid_crawl_feature(node)
-    local feature = get_feature(node)
+  function valid_crawl_feature(tile)
+    local feature = tile:get_feature()
     local validity = not (travel.feature_solid(feature) or feature == "unseen")
 
     -- If they're trapped behind "clear" there might be no path & infinite loop!
@@ -728,7 +743,7 @@ ai += hat of spirit shield:Spirit
         return reconstruct_path(came_from, goal, start, {goal})
       end
 
-      local neighbors = get_neighbors(current)
+      local neighbors = get_unsolid_known_neighbors(current)
       if neighbors == nil then
         -- nil neighbors signifies we found something invalid that might create
         -- an impossible path and should just stop trying
@@ -774,7 +789,7 @@ ai += hat of spirit shield:Spirit
       return nil
     end
 
-    local goal_feature = view.feature_at (goal.x, goal.y)
+    local goal_feature = goal:get_feature()
     if goal_feature == "unseen" or travel.feature_solid (goal_feature) then
       return nil
     end
@@ -797,17 +812,13 @@ ai += hat of spirit shield:Spirit
   end
 
   function path_to_player(goal)
-    return path_to({x=0,y=0}, goal)
+    return path_to(Square:new(0,0), goal)
   end
 
   function path_from_player(goal)
-    return path_to(goal, {x=0,y=0})
+    return path_to(goal, Square:new(0,0))
   end
   -- == end A* Pathfinding implementation == --
-
-  function Tile(x, y)
-    return {x=x,y=y}
-  end
 
   function node_compare(left, right)
     dleft = dist(Square:new(0, 0), left) 
@@ -818,7 +829,7 @@ ai += hat of spirit shield:Spirit
   ordered_potentially_visible_tiles = {}
   for x=-8,8 do
     for y=-8,8 do
-      table.insert(ordered_potentially_visible_tiles, {x = x, y = y})
+      table.insert(ordered_potentially_visible_tiles, Square:new(x, y))
     end
   end
   table.sort(ordered_potentially_visible_tiles, node_compare)
@@ -1006,7 +1017,7 @@ ai += hat of spirit shield:Spirit
     local all_monsters_enter = true
     if ms then
       for _, m in ipairs(ms) do
-        local m_adj_tile = adj_tile_from_path({x=0,y=0}, {x=m:x_pos(), y=m:y_pos()})
+        local m_adj_tile = adj_tile_from_path(Square:new(0,0), Square:new(m:x_pos(), m:y_pos()))
         
         -- 
         if m_adj_tile and not in_any_killhole(m_adj_tile.x, m_adj_tile.y) then
@@ -1039,6 +1050,22 @@ ai += hat of spirit shield:Spirit
     end
   end
 
+  function could_be_killhole(tile)
+    local neighbors = get_neighbors(tile)
+
+    solid_tiles = 0
+    for _, neighbor in ipairs(neighbors) do
+      if travel.feature_solid(neighbor:get_feature()) then
+        solid_tiles = solid_tiles + 1
+        if solid_tiles > 1 then
+          return true
+        end
+      end
+    end
+
+    return false
+  end
+
   -- TODO Evaluates distance as the crow flies, meaning killhole may be far
   -- away by foot or even unreachable. Improve the calculate by path distance
   -- taking into account performance and unseen tiles
@@ -1054,11 +1081,13 @@ ai += hat of spirit shield:Spirit
 
     local nonsolid_terrain = nonsolid_terrain_in_view()
     for _, terrain in ipairs(nonsolid_terrain) do
-      debug_log("Next killhole terrain loop")
-      if in_absolute_killhole(terrain.x, terrain.y) or in_relative_killhole(terrain.x, terrain.y) then
-      -- if in_absolute_killhole(terrain.x, terrain.y) then
-        nearby_killhole_memoized = terrain
-        return nearby_killhole_memoized
+      -- info_log("Next killhole terrain loop")
+
+      if could_be_killhole(terrain) then
+        if in_absolute_killhole(terrain.x, terrain.y) or in_relative_killhole(terrain.x, terrain.y) then
+          nearby_killhole_memoized = terrain
+          return nearby_killhole_memoized
+        end
       end
     end
 
@@ -1137,7 +1166,7 @@ ai += hat of spirit shield:Spirit
 
   -- Get map of terrain in view ordered by nearest
   --
-  -- @return Array of {feature, x, y} tables, ascending by dist from player
+  -- @return Array of Square tables, ascending by dist from player
   --
   -- WARNING terrain_in_view_memoized is memoized for performance and MUST be
   -- reset in ready() at the start of each turn
@@ -1149,9 +1178,8 @@ ai += hat of spirit shield:Spirit
 
     ordered_terrain_in_view = {}
     for _, tile in ipairs(ordered_potentially_visible_tiles) do
-      feature = view.feature_at(tile.x, tile.y)
-      if feature ~= "unseen" then
-        table.insert(ordered_terrain_in_view, {feature=feature,x=tile.x,y=tile.y})
+      if tile:get_feature() ~= "unseen" then
+        table.insert(ordered_terrain_in_view, tile)
       end
     end
 
@@ -1165,8 +1193,8 @@ ai += hat of spirit shield:Spirit
 
   -- @return {feature, x, y} of closest matching terrain, nil if no match
   function find_terrain_feature_in_view(feature)
-    for _, terrain_table in ipairs(terrain_in_view()) do
-      if terrain_table.feature:find(feature) then
+    for _, tile in ipairs(terrain_in_view()) do
+      if tile:get_feature():find(feature) then
         debug_log("Found desired terrain: " .. feature)
         return terrain_table
       end
@@ -1178,7 +1206,7 @@ ai += hat of spirit shield:Spirit
 
   function nonsolid_terrain_in_view()
     return util.filter(function(terrain) 
-      return not travel.feature_solid(terrain.feature)
+      return not travel.feature_solid(terrain:get_feature())
     end, terrain_in_view()) 
   end
 
@@ -1206,13 +1234,13 @@ ai += hat of spirit shield:Spirit
       tile_rel_to_player_x = 0
       tile_rel_to_player_y = 0
     end
+    local check_tile = Square:new(tile_rel_to_player_x, tile_rel_to_player_y)
 
     info_log("Checking abs killhole: " .. tile_rel_to_player_x .. ", " .. tile_rel_to_player_y)
 
     local empty_spaces = 0
-    for k,v in pairs(surrounding_coords) do
-      x, y = v[1], v[2]
-      local feature = view.feature_at(tile_rel_to_player_x+x, tile_rel_to_player_y+y)
+    for _, tile in ipairs(get_neighbors(check_tile)) do
+      local feature = tile:get_feature()
 
       -- debug_log("feature at: " ..
       --             fmt_coords(tile_rel_to_player_x+x, tile_rel_to_player_y+y) ..
@@ -1254,15 +1282,6 @@ ai += hat of spirit shield:Spirit
     if tile_rel_to_player_x == nil then
       tile_rel_to_player_x = 0
       tile_rel_to_player_y = 0
-    elseif math.abs(tile_rel_to_player_x) + math.abs(tile_rel_to_player_y) > 2 then
-      -- We don't path efficiently enough to path relatively at long distances
-      -- repeatedly. It's fine to do it once, so ideally we should limit this
-      -- at a higher level and make sure we just don't iterate over long 
-      -- distance checks, but it's easiest to do it here for now
-      --
-      -- TODO Improve efficiency or stop calling in_relative_killhole
-      -- repeatedly with long paths
-      return false
     end
 
     info_log("Checking rel killhole: " .. tile_rel_to_player_x .. ", " .. tile_rel_to_player_y)
@@ -1275,13 +1294,15 @@ ai += hat of spirit shield:Spirit
       return false
     end
 
+    local target_tile = Square:new(tile_rel_to_player_x, tile_rel_to_player_y)
+
     local adj_approach_x, adj_approach_y = nil, nil
     for _, monster in ipairs(monsters) do
       -- Find the tile adjacent to player that the monster will take if going
       -- shortest path
       local adj_tile_in_path = adj_tile_from_path(
-        {x=tile_rel_to_player_x, y=tile_rel_to_player_y},
-        {x=monster:x_pos(), y=monster:y_pos()}
+        target_tile,
+        Square:new(monster:x_pos(), monster:y_pos())
       )
 
       if adj_tile_in_path then
@@ -1307,29 +1328,27 @@ ai += hat of spirit shield:Spirit
       return false
     end
 
-    local tiles_around_target_tile = util.map(function(tile)
-      return {x=tile.x+adj_approach_x,y=tile.y+adj_approach_y}
-    end, surrounding_tiles)
+    adj_approach_tile = Square:new(adj_approach_x, adj_approach_y)
 
     -- The adjacent approach tile must not have open spaces also adjacent to
     -- target tile (otherwise, this algo could miss non-shortest path approaches)
     empty_spaces_arround_adj_approach = {}
-    for _, tile in ipairs(surrounding_tiles) do
-      adj_to_adj_approach_tile = {x = adj_approach_x + tile.x, y = adj_approach_y + tile.y}
-
+    for _, adj_to_adj_approach_tile in ipairs(get_neighbors(adj_approach_tile)) do
       -- Is this tile, which is adjacent to the adjacent approach tile, also 
       -- adjacent to the target tile (usually player)?
-      if tile_in_tiles(adj_to_adj_approach_tile, tiles_around_target_tile) then
-        local feature = view.feature_at(adj_to_adj_approach_tile.x, adj_to_adj_approach_tile.y)
-        debug_log("Feature at adj_to_adj_approach_tile: " .. feature)
+      if tile_in_tiles(adj_to_adj_approach_tile, get_neighbors(target_tile)) then
+        local feature = adj_to_adj_approach_tile:get_feature()
+        debug_log("Feature at adj_to_adj_approach_tile: " .. adj_to_adj_approach_tile:str())
 
         if not travel.feature_solid(feature) then
           -- Open space next to monster approach and player!
+          debug_log("Open space next to monster approach and player:" .. adj_to_adj_approach_tile:str())
           return false
         end
       end
     end 
 
+    info_log("Is relative killhole: " .. target_tile:str())
     return true
   end
 
