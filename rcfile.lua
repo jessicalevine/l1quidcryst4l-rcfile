@@ -1709,7 +1709,6 @@ ai += hat of spirit shield:Spirit
   end
 
   function ready()
-    monster_will_enter_killhole()
     reset_memoized_variables()
     just_gnats()
 
