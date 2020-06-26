@@ -1915,6 +1915,8 @@ ai += hat of spirit shield:Spirit
       if name:find("curare") then return true end
       if name:find("silver") then return true end
       if name:find("throwing net") then return true end
+      if name:find("boomerang") then return true end
+      if name:find("javelin") then return true end
 
       if name:find("gold dragon scales") and not acquired_gold_dragon then
         acquired_gold_dragon = true
