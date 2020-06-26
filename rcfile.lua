@@ -1787,7 +1787,7 @@ ai += hat of spirit shield:Spirit
     end
   end
 
-  tried_equip_once = {}
+  local tried_equip_once = {}
   function try_autoequip(equip_letter, item_name)
     if not tried_equip_once[item_name] and you.feel_safe() then
       item = find_in_inventory(item_name)
@@ -1812,11 +1812,9 @@ ai += hat of spirit shield:Spirit
   function maybe_equip_early()
     if you.branch() == "D" and you.depth() < 5 and you.class() == "Fighter" then
       try_autoequip("W", "plate")
-      equipped_plate_once = true
 
       if best_weapon_skill() == "Maces & Flails" then
         try_autoequip("w", "whip")
-        equipped_whip_once = true
       end
     end
   end
