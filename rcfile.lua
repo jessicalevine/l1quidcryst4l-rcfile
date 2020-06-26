@@ -908,7 +908,7 @@ ai += hat of spirit shield:Spirit
     local need_to_recover = should_rest(hp, mp, max_hp, max_mp)
 
     -- Handle dangerous hunger first
-    if really_need_eat() and not need_to_recover then
+    if need_eat() and not need_to_recover then
       if you.feel_safe() then
         -- (Maybe) Eat via autoexplore
         autoexplore()
@@ -1467,8 +1467,8 @@ ai += hat of spirit shield:Spirit
     return total_threat
   end
 
-  function really_need_eat()
-    local hungry = 3
+  function need_eat()
+    local hungry = 4
     return you.hunger() < hungry
   end
 
