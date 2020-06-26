@@ -1086,14 +1086,80 @@ ai += hat of spirit shield:Spirit
     end
   end
 
+  function intersection_of_tiles(tiles1, tiles2)
+    local intersection = {}
+    for _, t1 in ipairs(tiles1) do
+      for _, t2 in ipairs(tiles2) do
+        if t1:equals(t2) then
+          table.insert(intersection, t1)
+        end
+      end
+    end
+
+    return intersection
+  end
+
+  function is_known_solid_feature(feature)
+    return feature ~= "unseen" and travel.feature_solid(feature)
+  end
+
   function could_be_killhole(tile)
     local neighbors = get_neighbors(tile)
 
-    solid_tiles = 0
+    local condition_one = false
+    -- In order for there to be a killhole, we must have at least 2 solid
+    -- features that are not in a straight line, so we track the unique
+    -- x and y positions represented among solid features and if we have at
+    -- least 2 of each we know we have 2 solids not in a line
+    local uniq_solid_x, uniq_solid_y = {}, {}
     for _, neighbor in ipairs(neighbors) do
-      if travel.feature_solid(neighbor:get_feature()) then
-        solid_tiles = solid_tiles + 1
-        if solid_tiles > 1 then
+      local feature = neighbor:get_feature()
+      if is_known_solid_feature(feature) then
+        uniq_solid_x[neighbor.x] = 1
+        uniq_solid_y[neighbor.y] = 1
+        if #util.keys(uniq_solid_x) > 1 and #util.keys(uniq_solid_y) > 1 then
+          debug_log("Could be killhole cond one? Yes: " .. tile:str())
+          condition_one = true
+          break
+        end
+      end
+    end
+
+    if not condition_one then
+      return false
+    end
+
+    -- To be potentially a killhole, there must be a nonsolid space a monster
+    -- could enter which is surrounded only by solid spaces and/or the player.
+    -- We can verify this by looking at each nonsolid tile, seeing which of its
+    -- neighbors overlap's with the neighbors of the hypothetical player (aka
+    -- the tile argument) and ensuring every one of them is solid. If we find a
+    -- nonsolid neighbor tile meeting that condition, this could be a killhole.
+    --
+    -- Do more expensive condition (requires intersection of neighbors for each
+    -- nonsolid neighbor) second
+    local nonsolid_tile_neighbors, intersecting_tiles = {}, {}
+    local is_potential_killhole
+    for _, neighbor in ipairs(neighbors) do
+
+      local feature = neighbor:get_feature()
+      if not is_known_solid_feature(feature) then
+        nonsolid_tile_neighbors = get_neighbors(neighbor)
+
+        -- All tiles adjacent to "tile" and adjacent to neighbor
+        intersecting_tiles = intersection_of_tiles(neighbors, nonsolid_tile_neighbors)
+
+        -- Assume it's a potential killhole until we find a nonsolid tile next
+        -- to it, at which point break and move on to the next potential tile
+        is_potential_killhole = true
+        for _, intersecting_tile in ipairs(intersecting_tiles) do
+          if not is_known_solid_feature(intersecting_tile:get_feature()) then
+            is_potential_killhole = false 
+            break
+          end
+        end
+
+        if is_potential_killhole then
           return true
         end
       end
