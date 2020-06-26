@@ -416,7 +416,7 @@ ai += hat of spirit shield:Spirit
   LOG_LEVELS["WARN"] = 3
   LOG_LEVELS["INFO"] = 2
   LOG_LEVELS["DEBUG"] = 1
-  debug_log_level = LOG_LEVELS["DEBUG"]
+  debug_log_level = LOG_LEVELS["WARN"]
 
   function error_log(str)
     log_print(str, LOG_LEVELS["ERROR"])
