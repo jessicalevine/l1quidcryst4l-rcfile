@@ -2,12 +2,6 @@
 # TEAMMEMBERS autonomousgrandpa Grumpdoggo crybernetics
 
 # == l1quidcryst4l Crawl Opts ==
-# Eating QoL
-easy_eat_chunks  = true
-auto_eat_chunks = true
-auto_drop_chunks = yes
-confirm_butcher = never
-auto_butcher = hungry
 
 # Autoexplore
 travel_key_stop = false
@@ -918,22 +912,6 @@ ai += hat of spirit shield:Spirit
     local hp, max_hp = you.hp()
     local need_to_recover = should_rest(hp, mp, max_hp, max_mp)
 
-    -- Handle dangerous hunger first
-    if need_eat() and not need_to_recover then
-      if you.feel_safe() then
-        -- (Maybe) Eat via autoexplore
-        autoexplore()
-        record_acted()
-        return
-      elseif get_monster_threat_level() < 2 and find_in_inventory("chunk") then
-        -- Eat in combat if it's safe to do so and you need
-        crawl.sendkeys("ee")
-        crawl.mpr("Autoeating")
-        record_acted()
-        return
-      end
-    end
-
     if you.feel_safe() then
       if need_to_recover then
         rest()
@@ -1547,11 +1525,6 @@ ai += hat of spirit shield:Spirit
 
     info_log("Monster threat: " .. total_threat)
     return total_threat
-  end
-
-  function need_eat()
-    local hungry = 4
-    return you.hunger() < hungry
   end
 
   -- Borrowed from HDATravel
