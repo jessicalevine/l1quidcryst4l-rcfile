@@ -86,6 +86,7 @@ force_more_message += Partly explored
 force_more_message += YOU ARE IN FLIGHT VS. AIRSTRIKE!!!
 
 # Macros
+bindkey = [\{-233}] CMD_AUTOFIGHT_NOMOVE
 macros += M \{223} \{6}artefact\{32}||\{32}ego\{32}||\{32}whip\{32}||\{32}plate\{13}
 macros += M \{169} \{6}altar\{13}
 macros += M p ===autoplay
