@@ -734,10 +734,25 @@ ai += hat of spirit shield:Spirit
     end
   end
 
+  local a_star_iter_count = 0
+  function reset_a_star_iter_count()
+    a_star_iter_count = 0
+  end
+
+  function a_star_iteration_too_expensive()
+    -- Stop trying to path if it is too expensive
+    -- 45 was chosen based on playtesting. 60 is a little lag, 100 is a lot of lag
+    return a_star_iter_count > 45
+  end
+
   function a_star(start, goal)
     -- If we already found we cannot path from this goal, don't try again
     -- Probably due to a clear tile
     if get_cannot_path_from_cache(goal) then
+      return nil
+    end
+
+    if a_star_iteration_too_expensive() then
       return nil
     end
 
@@ -756,6 +771,12 @@ ai += hat of spirit shield:Spirit
 
     local current = nil
     while not open_set:empty() do
+
+      a_star_iter_count = a_star_iter_count + 1
+      if a_star_iteration_too_expensive() then
+        return nil
+      end
+
       current = open_set:pop()
 
       if current:equals(goal) then
@@ -1804,6 +1825,7 @@ ai += hat of spirit shield:Spirit
 
   function reset_memoized_variables()
     debug_log("Resetting memoized variables.")
+    reset_a_star_iter_count()
     reset_memoized_monster_list()
     reset_memoized_terrain_in_view()
     reset_memoized_nearby_killhole()
