@@ -3,6 +3,8 @@
 
 # == l1quidcryst4l Crawl Opts ==
 
+always_show_zot = true
+
 # Autoexplore
 travel_key_stop = false
 explore_wall_bias = 3
