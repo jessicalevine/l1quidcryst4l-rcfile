@@ -35,12 +35,12 @@ drop_filter += forbidden
 
 # Item slot assignments
 # Treat a, b, i, t, r, w as taken so no wrong scrolls on familiar keys
-item_slot ^= scroll:cdefghjklmnopqsuvxyz
+item_slot ^= scroll:cdefghjklnopqsuvxyz
 item_slot ^= blinking:b
 item_slot ^= identify:i
 item_slot ^= teleport:t
 item_slot ^= remove curse:r
-item_slot ^= enchant armour:a
+item_slot ^= enchant armour:m
 item_slot ^= enchant weapon:w
 
 item_slot ^= heal wounds:H
