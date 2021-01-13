@@ -1779,44 +1779,44 @@ ai += hat of spirit shield:Spirit
     end
   end
 
-  local tried_equip_once = {}
-  function try_autoequip(equip_letter, item_name)
-    if not tried_equip_once[item_name] and you.feel_safe() then
-      item = find_in_inventory(item_name)
-
-      if not item or item.equipped then
-        return
-      end
-
-      item_terse_name = item:name("plain", true)
-
-      crawl.mpr("Autoequipping " .. item_terse_name)
-      crawl.sendkeys(equip_letter .. items.index_to_letter(item.slot))
-
-      -- If we switch away, don't try to switch us back!
-      tried_equip_once[item_name] = true
-      -- crawl.mpr("Tried to equip item you don't have: " .. item_terse_name)
-    else
-      -- crawl.mpr("Can't equip " .. item_terse_name .. "because it's not safe. Do it yourself")
-    end
-  end
-
-  function maybe_equip_early()
-    if you.branch() == "D" and you.depth() < 5 and you.class() == "Fighter" then
-      try_autoequip("W", "plate")
-
-      if best_weapon_skill() == "Maces & Flails" then
-        try_autoequip("w", "whip")
-      end
-    end
-  end
-
-  function ch_stop_running(kind)
-    -- Runs on autoexplore stop or item pickup
-    if kind == "explore_greedy" then
-      maybe_equip_early()
-    end
-  end
+  -- local tried_equip_once = {}
+  -- function try_autoequip(equip_letter, item_name)
+  --   if not tried_equip_once[item_name] and you.feel_safe() then
+  --     item = find_in_inventory(item_name)
+  --
+  --     if not item or item.equipped then
+  --       return
+  --     end
+  --
+  --     item_terse_name = item:name("plain", true)
+  --
+  --     crawl.mpr("Autoequipping " .. item_terse_name)
+  --     crawl.sendkeys(equip_letter .. items.index_to_letter(item.slot))
+  --
+  --     -- If we switch away, don't try to switch us back!
+  --     tried_equip_once[item_name] = true
+  --     -- crawl.mpr("Tried to equip item you don't have: " .. item_terse_name)
+  --   else
+  --     -- crawl.mpr("Can't equip " .. item_terse_name .. "because it's not safe. Do it yourself")
+  --   end
+  -- end
+  --
+  -- function maybe_equip_early()
+  --   if you.branch() == "D" and you.depth() < 5 and you.class() == "Fighter" then
+  --     try_autoequip("W", "plate")
+  --
+  --     if best_weapon_skill() == "Maces & Flails" then
+  --       try_autoequip("w", "whip")
+  --     end
+  --   end
+  -- end
+  --
+  -- function ch_stop_running(kind)
+  --   -- Runs on autoexplore stop or item pickup
+  --   if kind == "explore_greedy" then
+  --     maybe_equip_early()
+  --   end
+  -- end
 
   function reset_memoized_variables()
     debug_log("Resetting memoized variables.")
