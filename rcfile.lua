@@ -1905,17 +1905,28 @@ ai += hat of spirit shield:Spirit
     return item_matches and you.xl() < 5 and not find_in_inventory(desired_item_name)
   end
 
+  function is_used_skill(skill_name)
+    return you.train_skill(skill_name) > 0 or you.skill(skill_name) > (you.xl() / 2)
+  end
+
   local acquired_gold_dragon = false
   add_autopickup_func(function(it, name)
 
-    -- l1quidcryst4l figher gotos
-    if you.class() == "Fighter" then
+    if is_used_skill("Throwing") then
       if name:find("curare") then return true end
+      if name:find("atropa") then return true end
       if name:find("silver") then return true end
       if name:find("throwing net") then return true end
       if name:find("boomerang") then return true end
       if name:find("javelin") then return true end
 
+      if you.xl() < 3 then
+        if name:find("stone") then return true end
+      end
+    end
+
+    -- l1quidcryst4l figher gotos
+    if you.class() == "Fighter" then
       if name:find("gold dragon scales") and not acquired_gold_dragon then
         acquired_gold_dragon = true
         return true
@@ -1951,7 +1962,7 @@ ai += hat of spirit shield:Spirit
       if sub_type:find("acid") then return true end
       if sub_type:find("random effects") then return false end
 
-      if you.skill("Evocations") > 9 then
+      if is_used_skill("Evocations") then
         if sub_type:find("clouds") then return true end
         if sub_type:find("iceblast") then return true end
         if sub_type:find("paralysis") then return true end
@@ -1966,13 +1977,15 @@ ai += hat of spirit shield:Spirit
     if (class == "jewellery") then
       local ego = it.ego()
 
-      -- Oversimplified caster check here
-      local caster = you.skill("Spellcasting") > 1
+      if is_used_skill("Spellcasting") then
+        if ego == "wizardry" then return true end
+        if ego == "magical power" then return true end
+      end
 
-      if ego == "wizardry" then return caster end
-      if ego == "magical power" then return caster end
 
-      if ego == "stealth" then return (you.skill("Stealth") > (you.xl() / 2)) end
+      if is_used_skill("Stealth") then
+        if ego == "stealth" then return true end
+      end
     end
 
     if (class == "armour") then
@@ -2036,6 +2049,7 @@ ai += hat of spirit shield:Spirit
           local mf = you.skill("Maces & Flails")
           local pole = you.skill("Polearms")
           local staff = you.skill("Staves")
+          local shields = you.skill("Shields")
           if sb > 6 then
             if name:find("quick blade") then return true end
           end
@@ -2058,10 +2072,12 @@ ai += hat of spirit shield:Spirit
             if name:find("executioner") then return true end
           end
           if mf > 8 and staff <= 8 and axe <= 8 then
-            if name:find("eveningstar") then return true end
             if name:find("demon whip") then return true end
             if name:find("sacred scourge") then return true end
-            if name:find("dire flail") then return true end
+            if shields < (you.xl() / 2) then
+              if name:find("eveningstar") then return true end
+              if name:find("dire flail") then return true end
+            end
           end
           if mf > 14 and staff <= 14 and axe <= 14 then
             if name:find("great mace") then return true end
