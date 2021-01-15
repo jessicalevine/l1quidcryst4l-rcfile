@@ -736,18 +736,14 @@ ai += hat of spirit shield:Spirit
 
   function a_star_iteration_too_expensive()
     -- Stop trying to path if it is too expensive
-    -- 45 was chosen based on playtesting. 60 is a little lag, 100 is a lot of lag
-    return a_star_iter_count > 45
+    -- 30 was chosen based on playtesting. 60 is a little lag, 100 is a lot of lag
+    return a_star_iter_count > 30
   end
 
   function a_star(start, goal)
     -- If we already found we cannot path from this goal, don't try again
     -- Probably due to a clear tile
     if get_cannot_path_from_cache(goal) then
-      return nil
-    end
-
-    if a_star_iteration_too_expensive() then
       return nil
     end
 
@@ -766,11 +762,7 @@ ai += hat of spirit shield:Spirit
 
     local current = nil
     while not open_set:empty() do
-
       a_star_iter_count = a_star_iter_count + 1
-      if a_star_iteration_too_expensive() then
-        return nil
-      end
 
       current = open_set:pop()
 
@@ -863,6 +855,16 @@ ai += hat of spirit shield:Spirit
 
   -- @return the tile adjacent to start in path, nil if no path
   function adj_tile_from_path(start, goal)
+    -- WARN This is a little hacky. We're only worried about the expense
+    -- of relative killhole pathing, and if and only if we doing relative
+    -- pathing, this function gets called. This means we can short circuit
+    -- relative pathing if it gets too expensive. The proper way to do it
+    -- would be to move this to relative pathing itself instead of this
+    -- utility function, but I am being lazy.
+    if a_star_iteration_too_expensive() then
+      return nil
+    end
+
     local path = path_to(start, goal)
     if not path then
       return nil
@@ -1828,6 +1830,9 @@ ai += hat of spirit shield:Spirit
   end
 
   function ready()
+    if a_star_iter_count > 0 then
+      crawl.mpr("Iter: " .. tostring(a_star_iter_count))
+    end
     reset_memoized_variables()
     just_gnats()
 
