@@ -96,11 +96,6 @@ macros += M & ===toggle_expensive_calc
 
 ### BORROWED ###
 
-msc := message_colour
-msc += mute:You start butchering
-msc += mute:You continue butchering
-msc += mute:This raw flesh tastes terrible
-
 # == Reddit force_mores ==
 # https://www.reddit.com/r/dcss/comments/6brrs8/formatting_force_more_message_option/dhpu179/
 
