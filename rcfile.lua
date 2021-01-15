@@ -93,6 +93,8 @@ macros += M p ===autoplay
 macros += M - ===print_nearby_killhole
 macros += M _ ===walk_one_step_to_killhole
 macros += M & ===toggle_expensive_calc
+# Ctrl-B
+macros += M \{2} ===nineteen_skill_banner
 
 ### BORROWED ###
 
@@ -1863,6 +1865,16 @@ ai += hat of spirit shield:Spirit
       need_skills_opened = false
       crawl.sendkeys("m")
     end
+  end
+
+  -- Banner skills --
+  function nineteen_skill_banner()
+    you.set_training_target("Fighting", 19)
+    you.set_training_target("Maces & Flails", 19)
+    you.set_training_target("Armour", 19)
+    you.set_training_target("Dodging", 19)
+    you.set_training_target("Shields", 19)
+    you.set_training_target("Evocations", 19)
   end
 
   -- == Armour/Weapon autopickup by rwbarton, enhanced by HDA with fixes from Bloaxor == --
