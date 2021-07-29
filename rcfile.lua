@@ -157,7 +157,8 @@ force_more_message += Partly explored
 # Macros
 bindkey = [\{-233}] CMD_AUTOFIGHT_NOMOVE
 macros += M \{169} \{6}altar\{13}
-macros += M p ===autoplay
+# Remove input macro for 0.27 tournament - disallowed by rules
+# macros += M p ===autoplay
 macros += M - ===print_nearby_killhole
 macros += M _ ===walk_one_step_to_killhole
 macros += M & ===toggle_expensive_calc
