@@ -154,9 +154,6 @@ force_more_message += MONSTERS ARE TOO THREATENING
 force_more_message += Done exploring
 force_more_message += Partly explored
 
-# Force More messages from mobwarnings
-force_more_message += YOU ARE IN FLIGHT VS. AIRSTRIKE!!!
-
 # Macros
 bindkey = [\{-233}] CMD_AUTOFIGHT_NOMOVE
 macros += M \{169} \{6}altar\{13}
@@ -2861,15 +2858,6 @@ ai += hat of spirit shield:Spirit
     mobwarnings["blizzard demon"] = "can cast Airstrike!"
     mobwarnings["Gastronok"] = "can cast Airstrike!"
     mobwarnings["wind drake"] = "can cast Airstrike and push you away!"
-    if you_are_flying then
-      local flightwarning = " <lightred>YOU ARE IN FLIGHT VS. AIRSTRIKE!!!</lightred>"
-      mobwarnings["air mage"] = mobwarnings["air mage"] .. flightwarning
-      mobwarnings["blizzard demon"] = mobwarnings["blizzard demon"]..flightwarning
-      mobwarnings["Gastronok"] = mobwarnings["Gastronok"]..flightwarning
-      mobwarnings["Sojobo"] = mobwarnings["Sojobo"]..flightwarning
-      mobwarnings["titan"] = mobwarnings["titan"]..flightwarning
-      mobwarnings["wind drake"] = mobwarnings["wind drake"]..flightwarning
-    end
 
     if no_see_invis then
       mobwarnings["boggart"] = "can cast Shadow Creatures and go Invisible!"
