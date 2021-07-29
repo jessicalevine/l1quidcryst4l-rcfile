@@ -1,5 +1,5 @@
 # TEAMNAME Gay Orb Desirers
-# TEAMMEMBERS autonomousgrandpa Grumpdoggo crybernetics
+# TEAMMEMBERS autonomousgrandpa caranatar crybernetics BridgetFan SlimeMom420
 
 # == l1quidcryst4l Crawl Opts ==
 
@@ -18,12 +18,26 @@ autofight_stop = 60
 # UI Tweaks
 show_more=false
 sort_menus = true        
-view_delay = 200
+
+view_delay = 0
+travel_delay = -1
+rest_delay = -1
+use_animations = 0
+
 warn_hatches = true
 equip_unequip = true
+
+tile_web_mouse_control = false
+tile_show_threat_levels = nasty
+tile_show_demon_tier = true
+msg_webtiles_height = 12
+
+messages_at_top = true
+
 view_max_height = 71
-msg_min_height = 12
-msg_max_height = 20
+# msg_min_height = 12
+# msg_max_height = 20
+
 show_game_time = false
 item_stack_summary_minimum = 6
 hp_colour = 100:green, 99:lightgray, 75:yellow, 50:lightred, 25:red
@@ -34,31 +48,88 @@ allow_self_target = false
 drop_filter += forbidden
 
 # Item slot assignments
-# Treat a, b, i, t, r, w as taken so no wrong scrolls on familiar keys
-item_slot ^= scroll:cdefghjklnopqsuvxyz
+item_slot ^= scroll:cdefgjklnopquvxyz
 item_slot ^= blinking:b
 item_slot ^= identify:i
 item_slot ^= teleport:t
 item_slot ^= remove curse:r
 item_slot ^= enchant armour:m
 item_slot ^= enchant weapon:w
+item_slot ^= summoning:s
+item_slot ^= holy word:h
+
+is ^= ring of protection from fire:f
+is ^= ring of protection from cold:c
+is ^= ring of willpower:w
+is ^= ring of see invisible:v
+is ^= ring of slaying:y
+is ^= of resist corrosion:g
 
 item_slot ^= heal wounds:H
 
 # All but H, capital letter because e(V)oke is caps
-item_slot ^= wand:ABCDEFGIJKLMNOPQRSTUVWXYZ
+item_slot ^= wand:BCEFGJKLOQRSTUVWXYZ
+item_slot ^= acid:A
 item_slot ^= lightning rod:L
 item_slot ^= paralysis:P
-item_slot ^= flame:F
+item_slot ^= polymorph:Y
+item_slot ^= wand of flame:F
 item_slot ^= digging:D
+item_slot ^= iceblast:I
+item_slot ^= disintegration:N
+item_slot ^= mirror:M
 
-# from Yermak
+# from Yermak with many modifications
+interrupt_memorise -= hp_loss
+interrupt_memorise -= monster
+
+as := ability_slot
+as ^= Evoke Invis: i
+as ^= Evoke Fligh: f
+as ^= Fly:         f
+as ^= Stop Flying: m
+as ^= Heroism:     h
+as ^= Finesse:     n
+
+ss := spell_slot
+ss ^= Blink:       b
+ss ^= Passage of:  p
+ss ^= Fireball:    b
+ss ^= Ignition:    i
+
 is := item_slot
 is ^= silver boomerang:u
 is ^= silver javelin:x
 is ^= (^|[0-9] )javelin:v
 is ^= (^|[0-9] )boomerang:t
 is ^= curare:C
+
+ae := autopickup_exceptions
+ae += <phantom mirror
+# If we have idenitified these, we probably do not need to pick up another
+ae += >ring of (poi|resist cor|fli|see)
+ae += >amulet of (the acr|fai|the gou|gua|har|mag|rag|ref|reg)
+
+menu_colour += cyan:brand weapon
+menu_colour += cyan:enchant weapon
+menu_colour += cyan:enchant armour
+menu_colour += yellow:holy word
+menu_colour += yellow:summoning
+menu_colour += yellow:silence
+menu_colour += green:potions? of might
+menu_colour += green:potions? of brilliance
+menu_colour += green:potions? of haste
+menu_colour += green:potions? of resistance
+menu_colour += green:potions? of berserk
+menu_colour += yellow:wand of para
+menu_colour += yellow:wand of poly
+menu_colour += yellow:wand of ensl
+menu_colour += yellow:wand of dig
+menu_colour += yellow:wand of acid
+menu_colour += yellow:mirror
+menu_colour += yellow:curare
+menu_colour += yellow:throwing net
+menu_colour += yellow:atropa
 
 # Class and god conditional options
 : if you.god():find("Beogh") then
@@ -73,9 +144,10 @@ is ^= curare:C
 : end 
 
 : if you.class() == "Fighter" then
-  drop_filter += wizardry, magical power, amnesia, brilliance, intelligence
   drop_filter += stabbing, stealth
 : end
+
+force_more_message += faded.*altar
 
 # Force More messages for autoplaying quickly
 force_more_message += MONSTERS ARE TOO THREATENING
@@ -87,7 +159,6 @@ force_more_message += YOU ARE IN FLIGHT VS. AIRSTRIKE!!!
 
 # Macros
 bindkey = [\{-233}] CMD_AUTOFIGHT_NOMOVE
-macros += M \{223} \{6}artefact\{32}||\{32}ego\{32}||\{32}whip\{32}||\{32}plate\{13}
 macros += M \{169} \{6}altar\{13}
 macros += M p ===autoplay
 macros += M - ===print_nearby_killhole
@@ -95,6 +166,22 @@ macros += M _ ===walk_one_step_to_killhole
 macros += M & ===toggle_expensive_calc
 # Ctrl-B
 macros += M \{2} ===nineteen_skill_banner
+
+# Ctrl-E for Early
+macros += M \{5} \{6}artefact\{32}||\{32}ego\{32}||\{32}whip\{32}||\{32}plate\{13}
+# Ctrl-] for Armour
+macros += M \{29} \{6}artefact\{32}||\{32}ego\{32}||\{32}gold\{32}||\{32}crystal\{32}&&\{32}armour\{13}
+# Ctrl-M for Maces
+macros += M ^M \{6}artefact\{32}||\{32}ego\{32}||\{32}demon\{32}&&\{32}mace\{13}
+# Ctrl-U for Shops (always useful items in)
+macros += M \{21} \{6}heal wounds\{32}||\{32}haste\{32}||\{32}might\{32}||\{32}blinking\{32}||\{32}fog\{32}||\{32}enchant\{32}||\{32}digging\{32}&&\{32}in_shop\{13}
+# Ctrl-T for Throwing
+macros += M \{20} \{6}throw\{13}
+
+# Numpad* or F3 for Toggle Realtime Speed Mode
+macros += M \{-267} ===toggle_realtime_speed_mode
+# Numpad- or F4 for Toggle Turn Speed Mode
+macros += M \{-268} ===toggle_turn_speed_mode
 
 ### BORROWED ###
 
@@ -270,7 +357,7 @@ more += You feel your power drain away
 more += You feel yourself grow more vulnerable to poison
 more += You stumble backwards
 more += You.*re (confused|more confused|too confused)
-more += You.*re (poisoned|more poisoned|lethally poisoned)
+more += You.*re (more poisoned|lethally poisoned)
 more += Your body is wracked with pain
 more += Your damage is reflected back at you
 more += Your limbs are stiffening
@@ -329,10 +416,14 @@ ai := autoinscribe
 
 # Do not automatically throw throwing nets
 ai += throwing net:=f
+ai += curare:=f
+ai += atropa:=f
 
 # Do not list useless items on ground
 ai += club:=k
 ai += skeleton:=k
+
+au += fragile:!w
 
 # HilariousDeathArtist
 
@@ -437,11 +528,52 @@ ai += hat of spirit shield:Spirit
     end
   end
 
+  function colormsg(str, color)
+    return "<" .. color .. ">" .. tostring(str) .. "</" .. color .. ">"
+  end
+
   local expensive_calc_on = true
   function toggle_expensive_calc()
-    crawl.mpr("Expensive calculations were: " .. tostring(expensive_calc_on))
+    crawl.mpr("Expensive calculations were: " .. colormsg(expensive_calc_on, "cyan"))
     expensive_calc_on = not expensive_calc_on
-    crawl.mpr("Expensive calculations is now: " .. tostring(expensive_calc_on))
+    crawl.mpr("Expensive calculations is now: " .. colormsg(expensive_calc_on, "cyan"))
+  end
+
+  local realtime_speed_mode = false
+  function toggle_realtime_speed_mode()
+    realtime_speed_mode = not realtime_speed_mode
+
+    if realtime_speed_mode then
+      crawl.setopt("drop_filter += immolation, lignification, ambrosia")
+
+      if you.xl() > 10 then
+        crawl.setopt("drop_filter += stones")
+      elseif you.xl() > 20 then
+        crawl.setopt("drop_filter += scroll of fear")
+        crawl.setopt("drop_filter += poisoned dart")
+      end
+
+      crawl.mpr("Realtime speed mode is now: " .. colormsg("on", "cyan"))
+    else
+      crawl.setopt("drop_filter -= immolation, lignification, ambrosia")
+
+      crawl.mpr("Realtime speed mode is now: " .. colormsg("off", "cyan"))
+    end
+  end
+
+  local turn_speed_mode = false
+  function toggle_turn_speed_mode()
+    turn_speed_mode = not turn_speed_mode
+
+    if turn_speed_mode then
+      crawl.setopt("explore_auto_rest = true")
+      crawl.setopt("rest_wait_percent = 100")
+      crawl.mpr("Turn speed mode is now: " .. colormsg("on", "cyan"))
+    else
+      crawl.setopt("explore_auto_rest = false")
+      crawl.setopt("rest_wait_percent = 80")
+      crawl.mpr("Turn speed mode is now: " .. colormsg("off", "cyan"))
+    end
   end
 
   -- Dumps table to string
@@ -949,7 +1081,7 @@ ai += hat of spirit shield:Spirit
         return
       end
 
-      if maybe_yell_in_killhole_or_wait() then
+      if (not turn_speed_mode) and maybe_yell_in_killhole_or_wait() then
         return -- You already acted
       end
     end
@@ -987,6 +1119,12 @@ ai += hat of spirit shield:Spirit
     local threat_level = get_monster_threat_level()
     local monster_names = get_all_monster_names()
 
+    if (turn_speed_mode or realtime_speed_mode) then
+      if threat_level < 2 or not there_is_dangerous_monster() then
+        return true
+      end 
+    end
+
     if threat_level < 1 and #monster_names < 3 then
       return true
     elseif get_monster_threat_level() < 2 then
@@ -1009,12 +1147,12 @@ ai += hat of spirit shield:Spirit
     elseif monsters_too_threatening() and not in_any_killhole() then
       print_nearby_killhole(true)
       crawl.mpr("<lightred>MONSTERS ARE TOO THREATENING!</lightred> Retreat to a killhole or stairdance.")
-    elseif items.fired_item() and not can_see_reach_or_threatening_ranged_monsters() then
+    elseif you.quiver_valid(1) and not can_see_reach_or_threatening_ranged_monsters() and not just_gnats() then
       -- Only if something is quivered
       hit_closest_nomove()
       record_acted()
     else
-      if not in_immediate_danger() and monster_will_enter_killhole() and not just_gnats() then
+      if not in_immediate_danger() and monster_will_enter_killhole() and not just_gnats() and not turn_speed_mode then
         wait()
         crawl.mpr("Waiting for monster approach.")
       else
@@ -1550,6 +1688,19 @@ ai += hat of spirit shield:Spirit
     return total_threat
   end
 
+  function there_is_dangerous_monster()
+    ms = get_all_monsters() 
+
+    total_threat = 0
+    for _, m in ipairs(ms) do
+      if m:threat() > 1 then
+        return true
+      end
+    end
+
+    return false
+  end
+
   -- Borrowed from HDATravel
   function should_rest(hp, mp, max_hp, max_mp)
     local you_are_mummy = string.find(you.race(), "Mummy")
@@ -1805,23 +1956,6 @@ ai += hat of spirit shield:Spirit
     end
   end
 
-  function maybe_equip_early()
-    if you.branch() == "D" and you.depth() < 5 and you.class() == "Fighter" then
-      try_autoequip("W", "plate")
-
-      if best_weapon_skill() == "Maces & Flails" then
-        try_autoequip("w", "whip")
-      end
-    end
-  end
-
-  function ch_stop_running(kind)
-    -- Runs on autoexplore stop or item pickup
-    if kind == "explore_greedy" then
-      maybe_equip_early()
-    end
-  end
-
   function reset_memoized_variables()
     debug_log("Resetting memoized variables.")
     reset_a_star_iter_count()
@@ -1836,7 +1970,6 @@ ai += hat of spirit shield:Spirit
       crawl.mpr("Iter: " .. tostring(a_star_iter_count))
     end
     reset_memoized_variables()
-    just_gnats()
 
     -- HDA functions
     AnnounceDamage()
@@ -1854,11 +1987,27 @@ ai += hat of spirit shield:Spirit
   function OpenSkills()
     if you.turns() < 2 and need_skills_opened then
       if you.class() == "Fighter" then
-        you.set_training_target("Maces & Flails", 12)
-        you.train_skill("Maces & Flails", 2)
+        if you.race():find("gargoyle") then
+          you.set_training_target("Maces & Flails", 12)
+          you.train_skill("Maces & Flails", 2)
+        end
+
+        if you.race():find("deep dwarf") then
+          you.train_skill("Axes", 2)
+          you.train_skill("Invocations", 1)
+        end
+
         you.set_training_target("Shields", 5)
         you.train_skill("Shields", 2)
         you.set_training_target("Throwing", 2)
+        you.train_skill("Throwing", 1)
+      end
+
+      if you.class() == "Monk" then
+        you.train_skill("Armour", 1)
+        you.train_skill("Dodging", 0)
+        you.train_skill("Stealth", 0)
+        you.set_training_target("Throwing", 1)
         you.train_skill("Throwing", 1)
       end
 
@@ -1885,16 +2034,16 @@ ai += hat of spirit shield:Spirit
     weapon_skills["Short Blades"] = you.skill("Short Blades")
     weapon_skills["Long Blades"] = you.skill("Long Blades")
     weapon_skills["Axes"] = you.skill("Axes")
-    weapon_skills["Maces & Flails"] = you.skill("Maces & Fails")
+    weapon_skills["Maces & Flails"] = you.skill("Maces & Flails")
     weapon_skills["Polearms"] = you.skill("Polearms")
     weapon_skills["Staves"] = you.skill("Staves")
     weapon_skills["Unarmed Combat"] = you.skill("Unarmed Combat")
 
-    local max_skill_name = next(weapon_skills)
-    local max_skill_int = weapon_skills[max_skill_name]
+    local max_skill_name = nil
+    local max_skill_int = 0
 
     for k, v in pairs(weapon_skills) do
-      if weapon_skills[k] > max_skill_int then
+      if v >= max_skill_int then
         max_skill_name, max_skill_int = k, v
       end
     end
@@ -1921,19 +2070,30 @@ ai += hat of spirit shield:Spirit
     return you.train_skill(skill_name) > 0 or you.skill(skill_name) > (you.xl() / 2)
   end
 
+  function early_melee_character()
+    return you.xl() < 7 and you.strength() > 12
+  end
+
   local acquired_gold_dragon = false
   add_autopickup_func(function(it, name)
+    local max_skill_name = best_weapon_skill()
 
-    if is_used_skill("Throwing") then
+    if max_skill_name == "Maces & Flails" then
+      if maybe_early_pickup(name, "whip") then return true end
+    end
+
+    if is_used_skill("Throwing") or early_melee_character() then
       if name:find("curare") then return true end
       if name:find("atropa") then return true end
       if name:find("silver") then return true end
       if name:find("throwing net") then return true end
       if name:find("boomerang") then return true end
       if name:find("javelin") then return true end
+    end
 
-      if you.xl() < 3 then
-        if name:find("stone") then return true end
+    if early_melee_character() then
+      if not you.quiver_valid(1) and name:find("stone") then
+        return true
       end
     end
 
@@ -1944,16 +2104,9 @@ ai += hat of spirit shield:Spirit
         return true
       end
 
-      if maybe_early_pickup(name, "whip") then return true end
       if maybe_early_pickup(name, "plate") then return true end
 
-      if name:find("wizardry") then return false end
-      if name:find("magical power") then return false end
-      if name:find("amnesia") then return false end
-      if name:find("brilliance") then return false end
-
       if name:find("stealth") then return false end
-      if name:find("intelligence") then return false end
 
       if name:find("datura") then return false end
       if name:find("stabbing") then return false end
@@ -1975,11 +2128,12 @@ ai += hat of spirit shield:Spirit
       if sub_type:find("random effects") then return false end
 
       if is_used_skill("Evocations") then
-        if sub_type:find("clouds") then return true end
         if sub_type:find("iceblast") then return true end
         if sub_type:find("paralysis") then return true end
         if sub_type:find("enslavement") then return true end
       end
+
+      if you.race() == "Deep Dwarf" then return true end
 
       -- Pick up other wnad types if evocations is at least one third your XL 
       -- aka "Only grab other wands if you can actually meaningfully use them"
@@ -2017,7 +2171,9 @@ ai += hat of spirit shield:Spirit
       if (sub_type == "body") then
         if equipped_item then
           local armourname = equipped_item.name()
-          if equipped_item.artefact or equipped_item.branded or equipped_item.ego or (equipped_item.plus > 2) or armourname:find("dragon") or armourname:find("troll") then
+          if early_melee_character() and it.ac > equipped_item.ac then
+            return true
+          elseif equipped_item.artefact or equipped_item.branded or equipped_item.ego or (equipped_item.plus > 2) or armourname:find("dragon") or armourname:find("troll") then
             return it.artefact
           else
             return it.artefact or it.branded or it.ego
@@ -2045,7 +2201,7 @@ ai += hat of spirit shield:Spirit
       end
 
       -- l1quidcryst4l mod: Pick up all artefacts of your best weapon skill
-      if (best_weapon_skill() == it.weap_skill) then
+      if (max_skill_name == it.weap_skill) then
         if (it.artefact) then return true end
       end
 
@@ -2484,7 +2640,7 @@ ai += hat of spirit shield:Spirit
       mobwarnings["cyclops"] = "can throw large rocks!"
       mobwarnings["death yak"] = "can hit for high damage in melee!"
       mobwarnings["dire elephant"] = "can hit for high damage in melee, and can trample!"
-      mobwarnings["enormous slime creature"] = "can hit for high damage in melee!"
+      mobwarnings["enormous slime creature"] = "can hit for <red>88 DAMAGE</red> in melee!"
       mobwarnings["Erolcha"] = "might cast banishment, paralyse, or LCS!"
       mobwarnings["firefly"] = "is very fast, can hit for moderate damage, and flashes a warning beacon!"
       mobwarnings["harpy"] = "is very fast and can hit for high damage in melee!"
@@ -2597,7 +2753,7 @@ ai += hat of spirit shield:Spirit
       mobwarnings["Rupert"] = "can paralyse you in fear!"
       mobwarnings["stone giant"] = "throws large rocks and can hit for very high damage!"
       mobwarnings["tengu reaver"] = "is fast"..tengureaverwarn.."!"
-      mobwarnings["titanic slime creature"] = "can hit for high damage in melee!"
+      mobwarnings["titanic slime creature"] = "can hit for <red>110 DAMAGE</red> in melee!"
       mobwarnings["vampire knight"] = "can cast paralyse!"
       mobwarnings["vampire mage"] = "can Summon Undead and Animate Dead!"
       mobwarnings["Vashnia"] = "can blink herself and allies away!"
