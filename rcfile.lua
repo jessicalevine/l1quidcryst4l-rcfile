@@ -1,5 +1,5 @@
 # TEAMNAME Gay Orb Desirers
-# TEAMMEMBERS autonomousgrandpa caranatar crybernetics BridgetFan SlimeMom420
+# TEAMMEMBERS crybernetics BridgetFan grumpdog scyphozoan qchangeling
 
 # == l1quidcryst4l Crawl Opts ==
 
