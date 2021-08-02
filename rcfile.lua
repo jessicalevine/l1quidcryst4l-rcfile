@@ -46,8 +46,7 @@ allow_self_target = false
 drop_filter += forbidden
 
 # Item slot assignments
-item_slot ^= scroll:cdefgjklnopquvxyz
-item_slot ^= blinking:b
+item_slot ^= blinking:B
 item_slot ^= identify:i
 item_slot ^= teleport:t
 item_slot ^= remove curse:r
@@ -66,7 +65,7 @@ is ^= of resist corrosion:g
 item_slot ^= heal wounds:H
 
 # All but H, capital letter because e(V)oke is caps
-item_slot ^= wand:BCEFGJKLOQRSTUVWXYZ
+item_slot ^= wand:CEFGJKLOQRSTUVWXYZ
 item_slot ^= acid:A
 item_slot ^= lightning rod:L
 item_slot ^= paralysis:P
