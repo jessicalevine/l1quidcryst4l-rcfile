@@ -32,8 +32,6 @@ tile_show_threat_levels = nasty
 tile_show_demon_tier = true
 msg_webtiles_height = 12
 
-messages_at_top = true
-
 view_max_height = 71
 # msg_min_height = 12
 # msg_max_height = 20
