@@ -418,6 +418,7 @@ ai := autoinscribe
 ai += throwing net:=f
 ai += curare:=f
 ai += atropa:=f
+ai += dispersal:=f
 
 # Do not list useless items on ground
 ai += club:=k
@@ -2089,6 +2090,7 @@ ai += hat of spirit shield:Spirit
       if name:find("throwing net") then return true end
       if name:find("boomerang") then return true end
       if name:find("javelin") then return true end
+      if name:find("poisoned") then return true end
     end
 
     if early_melee_character() then
