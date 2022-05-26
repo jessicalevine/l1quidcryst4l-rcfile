@@ -89,10 +89,15 @@ as ^= Heroism:     h
 as ^= Finesse:     n
 
 ss := spell_slot
-ss ^= Blink:       b
-ss ^= Passage of:  p
-ss ^= Fireball:    b
-ss ^= Ignition:    i
+ss ^= Blink:          b
+ss ^= Passage of:     p
+ss ^= Fireball:       b
+ss ^= Ignition:       g
+ss ^= Deconstruction: l
+ss ^= Statue Form:    s
+ss ^= Ramparts:       f
+ss ^= Iron Shot:      i
+ss ^= Stone Arrow:    a
 
 is := item_slot
 is ^= silver boomerang:u
